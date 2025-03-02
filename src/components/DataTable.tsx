@@ -132,7 +132,6 @@ const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
 const DataTable: React.FC = () => {
   // This is a test comment to verify the pull request review process
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   // State for columns with responsive width settings - adjusted to be narrower
   const [columns, setColumns] = useState<Column[]>([
     { id: 'name', title: 'NAME', type: 'name', width: 'w-48', minWidth: 'min-w-[150px]' },
@@ -149,33 +148,11 @@ const DataTable: React.FC = () => {
   const tableRef = useRef<HTMLDivElement>(null);
 
   /**
-   * Handles the selection/deselection of a task
-   * @param taskId - The unique identifier of the task
-   * @param isSelected - Whether the task should be selected or deselected
-   */
-  const handleSelectTask = (taskId: string, isSelected: boolean) => {
-    setSelectedTasks(prev => {
-      const newSet = new Set(prev);
-      if (isSelected) {
-        newSet.add(taskId);
-      } else {
-        newSet.delete(taskId);
-      }
-      return newSet;
-    });
-  };
-
-  /**
    * Removes a task from the table
    * @param taskId - The unique identifier of the task to delete
    */
   const handleDeleteTask = (taskId: string) => {
     setTasks(tasks.filter(task => task.id !== taskId));
-    setSelectedTasks(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(taskId);
-      return newSet;
-    });
   };
 
   // Function to handle adding a new column

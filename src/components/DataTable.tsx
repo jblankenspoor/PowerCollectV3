@@ -348,10 +348,10 @@ const DataTable: React.FC = () => {
              */}
             {/**
              * Actions column header
-             * - Width matches the action buttons container in the rows
+             * - Width matches the action buttons container in the rows (130px)
              * - Text is centered for better alignment
              */}
-            <div className="w-[125px] flex-shrink-0 flex items-center justify-center border-l border-gray-200 bg-gray-50">
+            <div className="w-[130px] flex-shrink-0 flex items-center justify-center border-l border-gray-200 bg-gray-50">
               <span className="text-sm font-medium text-gray-500 text-center w-full">ACTIONS</span>
             </div>
           </div>
@@ -404,11 +404,12 @@ const DataTable: React.FC = () => {
                  * - Maintains other styling for consistency
                  */}
                 {/**
-                 * Action buttons container - width increased from 120px to 125px
+                 * Action buttons container - width increased to 130px
                  * - Width increased to ensure tooltip text fits properly
+                 * - Gap reduced to bring icons closer together
                  * - Maintains other styling for consistency
                  */}
-                <div className="w-[125px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-1">
+                <div className="w-[130px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-0">
                   {/**
                    * Add column button
                    * - Triggers handleAddColumn function when clicked
@@ -425,7 +426,7 @@ const DataTable: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleAddColumn}
-                      className="p-2 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors duration-200 rounded-md tooltip-trigger"
+                      className="p-1.5 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors duration-200 rounded-md tooltip-trigger"
                       aria-label="Add column"
                       onMouseEnter={(e) => {
                         const tooltip = e.currentTarget.nextElementSibling;
@@ -438,7 +439,13 @@ const DataTable: React.FC = () => {
                     >
                       <PlusIcon className="h-5 w-5" />
                     </button>
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[95px] text-center">
+                    {/**
+                     * Add column tooltip
+                     * - Minimal padding with px-0.5 for horizontal spacing
+                     * - Reduced minimum width to 80px
+                     * - Positioned with proper alignment
+                     */}
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-0.5 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center">
                       Add column
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                     </div>
@@ -460,7 +467,7 @@ const DataTable: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleDeleteTask(task.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 cursor-pointer transition-colors duration-200 rounded-md tooltip-trigger"
+                      className="p-1.5 text-gray-400 hover:text-red-600 cursor-pointer transition-colors duration-200 rounded-md tooltip-trigger"
                       aria-label="Delete task"
                       onMouseEnter={(e) => {
                         const tooltip = e.currentTarget.nextElementSibling;
@@ -473,7 +480,13 @@ const DataTable: React.FC = () => {
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[95px] text-center">
+                    {/**
+                     * Delete row tooltip
+                     * - Minimal padding with px-0.5 for horizontal spacing
+                     * - Reduced minimum width to 80px
+                     * - Positioned with proper alignment
+                     */}
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-0.5 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center">
                       Delete row
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                     </div>

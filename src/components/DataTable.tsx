@@ -394,6 +394,7 @@ const DataTable: React.FC = () => {
                     onClick={handleAddColumn}
                     className="p-2 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors duration-200 rounded-md"
                     aria-label="Add column"
+                    title="Add column"
                   >
                     <PlusIcon className="h-5 w-5" />
                   </button>
@@ -409,6 +410,7 @@ const DataTable: React.FC = () => {
                     onClick={() => handleDeleteTask(task.id)}
                     className="p-2 text-gray-400 hover:text-red-600 cursor-pointer transition-colors duration-200 rounded-md"
                     aria-label="Delete task"
+                    title="Delete row"
                   >
                     <TrashIcon className="h-5 w-5" />
                   </button>

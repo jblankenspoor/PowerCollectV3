@@ -25,7 +25,7 @@ type Priority = 'Low' | 'Medium' | 'High';
 interface Column {
   id: string;       // Unique identifier for the column
   title: string;    // Display title in the header
-  type: 'name' | 'status' | 'priority' | 'date' | 'text';  // Column data type
+  type: 'name' | 'status' | 'priority' | 'date' | 'text' | 'select';  // Column data type
   width: string;    // CSS width class
   minWidth?: string; // Minimum width for responsive behavior
 }
@@ -130,10 +130,14 @@ const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
  * Manages the state and rendering of the interactive data table
  */
 const DataTable: React.FC = () => {
-  // This is a test comment to verify the pull request review process
+  // State for managing tasks and their selection
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  
   // State for columns with responsive width settings - adjusted to be narrower
   const [columns, setColumns] = useState<Column[]>([
+    // Select column with sufficient width for 'Deselect All' button
+    { id: 'select', title: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
     { id: 'name', title: 'NAME', type: 'name', width: 'w-48', minWidth: 'min-w-[150px]' },
     { id: 'status', title: 'STATUS', type: 'status', width: 'w-32', minWidth: 'min-w-[100px]' },
     { id: 'priority', title: 'PRIORITY', type: 'priority', width: 'w-32', minWidth: 'min-w-[100px]' },
@@ -148,11 +152,45 @@ const DataTable: React.FC = () => {
   const tableRef = useRef<HTMLDivElement>(null);
 
   /**
-   * Removes a task from the table
+   * Handles the selection/deselection of a task
+   * @param taskId - The unique identifier of the task
+   * @param isSelected - Whether the task should be selected or deselected
+   */
+  const handleSelectTask = (taskId: string, isSelected: boolean) => {
+    setSelectedTasks(prev => {
+      const newSet = new Set(prev);
+      if (isSelected) {
+        newSet.add(taskId);
+      } else {
+        newSet.delete(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  /**
+   * Handles selecting or deselecting all tasks
+   * @param selectAll - Whether to select or deselect all tasks
+   */
+  const handleSelectAll = (selectAll: boolean) => {
+    if (selectAll) {
+      setSelectedTasks(new Set(tasks.map(task => task.id)));
+    } else {
+      setSelectedTasks(new Set());
+    }
+  };
+
+  /**
+   * Removes a task from the table and from selection if selected
    * @param taskId - The unique identifier of the task to delete
    */
   const handleDeleteTask = (taskId: string) => {
     setTasks(tasks.filter(task => task.id !== taskId));
+    setSelectedTasks(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(taskId);
+      return newSet;
+    });
   };
 
   // Function to handle adding a new column
@@ -206,15 +244,21 @@ const DataTable: React.FC = () => {
   useEffect(() => {
     const handleResize = () => {
       // Force table to recalculate its layout on resize
-      if (tableRef.current) {
-        // Ensure table is wide enough to show all columns
-        const tableWidth = tableRef.current.scrollWidth;
-        tableRef.current.style.minWidth = `${tableWidth}px`;
+      if (tableRef.current && tableRef.current.parentElement) {
+        // Get the actual width of content
+        const tableContainer = tableRef.current.firstChild as HTMLElement;
+        if (!tableContainer) return;
+        
+        // Set the width of the outer container to match its content
+        // This ensures no extra whitespace is displayed
+        const contentWidth = tableContainer.getBoundingClientRect().width;
+        tableRef.current.style.width = `${contentWidth}px`;
         
         // Ensure scrollbar appears when needed
-        const containerWidth = tableRef.current.parentElement?.clientWidth || 0;
-        if (tableWidth > containerWidth) {
-          tableRef.current.parentElement?.classList.add('overflow-x-auto');
+        const containerWidth = tableRef.current.parentElement.clientWidth || 0;
+        
+        if (contentWidth > containerWidth) {
+          tableRef.current.parentElement.classList.add('overflow-x-auto');
           setShowScrollNotification(true);
         } else {
           setShowScrollNotification(false);
@@ -262,17 +306,27 @@ const DataTable: React.FC = () => {
           </div>
         </div>
       )}
-      {/* Table wrapper with horizontal scroll */}
+      {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
       <div 
         ref={tableRef}
-        className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto w-full"
+        className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto inline-block"
+        style={{ maxWidth: '100%' }} /* Ensures it doesn't exceed viewport width */
       >
-        {/* Table container */}
-        <div className="min-w-full table-fixed">
+        {/* Table container - w-max ensures it only takes the space it needs */}
+        <div className="w-max table-fixed">
           {/* Table Header */}
           <div className="flex border-b border-gray-200 bg-gray-50">
-            {/* Map through columns to create header cells */}
-            {columns.map(column => (
+            {/* First cell is for Select All button */}
+            <div className={`${columns[0].width} ${columns[0].minWidth || ''} p-4 flex justify-center items-center`}>
+              <button
+                onClick={() => handleSelectAll(selectedTasks.size < tasks.length)}
+                className="w-full px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                {selectedTasks.size === tasks.length ? 'Deselect All' : 'Select All'}
+              </button>
+            </div>
+            {/* Map through columns to create header cells (skip the first select column as we handle it separately) */}
+            {columns.slice(1).map(column => (
               <div 
                 key={column.id} 
                 className={`${column.width} ${column.minWidth || ''} p-4 flex items-center font-medium text-gray-500 text-sm whitespace-nowrap`}
@@ -281,27 +335,13 @@ const DataTable: React.FC = () => {
               </div>
             ))}
             {/**
-             * Add column button container
+             * Action buttons header container
+             * - Contains space for the add column and delete buttons that will appear in rows
              * - Fixed width ensures consistent layout
              * - flex-shrink-0 prevents it from collapsing when space is limited
-             * - Contains the button that adds a new column to the table
              */}
-            <div className="w-[100px] flex-shrink-0">
-              {/**
-               * Add column button
-               * - Triggers handleAddColumn function when clicked
-               * - Takes full width and height of its container
-               * - Uses subtle hover effect for better user feedback
-               * - Includes aria-label for accessibility
-               */}
-              <button
-                type="button"
-                onClick={handleAddColumn}
-                className="w-full h-full bg-gray-50 flex items-center justify-center border-l border-gray-200 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
-                aria-label="Add column"
-              >
-                <PlusIcon className="h-5 w-5 text-gray-500 hover:text-gray-700 transition-colors duration-200" />
-              </button>
+            <div className="w-[100px] flex-shrink-0 flex items-center justify-center border-l border-gray-200 bg-gray-50">
+              <span className="text-sm font-medium text-gray-500">ACTIONS</span>
             </div>
           </div>
 
@@ -310,35 +350,69 @@ const DataTable: React.FC = () => {
             <div key={task.id} className="group relative">
               {/* Row content with trash can */}
               <div className="flex border-b border-gray-200">
-                {/* Map through columns to create cells for this row */}
-                {columns.map(column => (
+                {/* First cell for checkbox */}
+                <div 
+                  className={`${columns[0].width} ${columns[0].minWidth || ''} p-4 flex-shrink-0 flex justify-center items-center hover:bg-blue-50/80 overflow-hidden`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTasks.has(task.id)}
+                    onChange={(e) => handleSelectTask(task.id, e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                </div>
+                
+                {/* Map through remaining columns to create cells for this row */}
+                {columns.slice(1).map(column => (
                   <div 
                     key={column.id} 
                     className={`${column.width} ${column.minWidth || ''} p-4 flex-shrink-0 flex items-center hover:bg-blue-50/80 overflow-hidden`}
                   >
-                    {column.type === 'status' ? <StatusBadge status={task[column.id] as Status} /> :
-                    column.type === 'priority' ? <PriorityBadge priority={task[column.id] as Priority} /> :
-                    task[column.id]}
+                    {column.type === 'status' ? (
+                      <StatusBadge status={task[column.id] as Status} />
+                    ) : column.type === 'priority' ? (
+                      <PriorityBadge priority={task[column.id] as Priority} />
+                    ) : task[column.id]}
                   </div>
                 ))}
                 {/**
-                 * Spacer div that ensures consistent layout with the header
-                 * Width matches the add column button for proper alignment
-                 * flex-shrink-0 prevents it from collapsing when space is limited
+                 * Action buttons container
+                 * - Contains both add column and delete buttons next to each other
+                 * - Fixed width ensures consistent layout
+                 * - flex-shrink-0 prevents it from collapsing when space is limited
+                 * - border-l provides visual separation from data cells
                  */}
-                <div className="w-[100px] bg-gray-50 border-l border-gray-200 flex-shrink-0"></div>
-              </div>
-              
-              {/* Trash can positioned absolutely to the right of each row for clean layout */}
-              <div className="absolute right-[-40px] top-1/2 transform -translate-y-1/2">
-                <button
-                  type="button"
-                  onClick={() => handleDeleteTask(task.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 cursor-pointer transition-colors duration-200 bg-gray-50 rounded-md"
-                  aria-label="Delete task"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
+                <div className="w-[100px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-2">
+                  {/**
+                   * Add column button
+                   * - Triggers handleAddColumn function when clicked
+                   * - Positioned next to the delete button for better UX
+                   * - Uses subtle hover effect for better user feedback
+                   */}
+                  <button
+                    type="button"
+                    onClick={handleAddColumn}
+                    className="p-2 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors duration-200 rounded-md"
+                    aria-label="Add column"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                  </button>
+                  
+                  {/**
+                   * Delete task button
+                   * - Triggers handleDeleteTask function when clicked
+                   * - Positioned next to the add column button
+                   * - Uses red hover color to indicate destructive action
+                   */}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteTask(task.id)}
+                    className="p-2 text-gray-400 hover:text-red-600 cursor-pointer transition-colors duration-200 rounded-md"
+                    aria-label="Delete task"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -353,7 +427,7 @@ const DataTable: React.FC = () => {
             >
               <PlusIcon className="h-5 w-5" />
             </button>
-            {/* Add a spacer to ensure proper alignment with the add column button */}
+            {/* Add a spacer to ensure proper alignment with the action buttons */}
             <div className="w-[100px] bg-gray-50 border-t border-gray-200 shrink-0"></div>
           </div>
         </div>

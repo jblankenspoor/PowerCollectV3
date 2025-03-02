@@ -148,6 +148,9 @@ const DataTable: React.FC = () => {
   // State to track if horizontal scrolling is needed
   const [showScrollNotification, setShowScrollNotification] = useState(false);
   
+  // State to track the table width for proper alignment of bottom button
+  const [tableWidth, setTableWidth] = useState(0);
+  
   // Reference to the table container for measuring available space
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -253,6 +256,9 @@ const DataTable: React.FC = () => {
         // This ensures no extra whitespace is displayed
         const contentWidth = tableContainer.getBoundingClientRect().width;
         tableRef.current.style.width = `${contentWidth}px`;
+        
+        // Update tableWidth state for the Add Task button alignment
+        setTableWidth(contentWidth);
         
         // Ensure scrollbar appears when needed
         const containerWidth = tableRef.current.parentElement.clientWidth || 0;
@@ -387,7 +393,7 @@ const DataTable: React.FC = () => {
                  * - Width increased to ensure tooltip text fits properly
                  * - Maintains other styling for consistency
                  */}
-                <div className="w-[110px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-2">
+                <div className="w-[110px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-1">
                   {/**
                    * Add column button
                    * - Triggers handleAddColumn function when clicked
@@ -452,7 +458,7 @@ const DataTable: React.FC = () => {
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center">
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[85px] text-center">
                       Delete row
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                     </div>
@@ -464,11 +470,17 @@ const DataTable: React.FC = () => {
 
           {/* Add Task Button */}
           {/* Add task button at the bottom of the table */}
+          {/**
+           * Add task button container
+           * - Full width to match the table above it
+           * - Uses table-layout to ensure proper alignment with table columns
+           */}
           <div className="flex w-full">
             <button
               onClick={handleAddTask}
-              className="flex-1 flex justify-center items-center p-4 border-t border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors duration-200"
+              className="flex-1 flex justify-center items-center p-4 border-t border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors duration-200 w-full"
               aria-label="Add task"
+              style={{ width: tableWidth > 0 ? `${tableWidth}px` : '100%' }}
             >
               <PlusIcon className="h-5 w-5" />
             </button>

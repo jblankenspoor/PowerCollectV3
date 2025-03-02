@@ -382,22 +382,46 @@ const DataTable: React.FC = () => {
                  * - flex-shrink-0 prevents it from collapsing when space is limited
                  * - border-l provides visual separation from data cells
                  */}
-                <div className="w-[100px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-2">
+                {/**
+                 * Action buttons container - width increased from 100px to 110px
+                 * - Width increased to ensure tooltip text fits properly
+                 * - Maintains other styling for consistency
+                 */}
+                <div className="w-[110px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-2">
                   {/**
                    * Add column button
                    * - Triggers handleAddColumn function when clicked
                    * - Positioned next to the delete button for better UX
                    * - Uses subtle hover effect for better user feedback
                    */}
-                  <button
-                    type="button"
-                    onClick={handleAddColumn}
-                    className="p-2 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors duration-200 rounded-md"
-                    aria-label="Add column"
-                    title="Add column"
-                  >
-                    <PlusIcon className="h-5 w-5" />
-                  </button>
+                  {/**
+                   * Add column button with custom tooltip
+                   * - Uses a hover state on the button itself to trigger the tooltip
+                   * - Tooltip appears immediately on hover with no delay
+                   * - Styled with consistent colors and rounded corners
+                   */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={handleAddColumn}
+                      className="p-2 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors duration-200 rounded-md tooltip-trigger"
+                      aria-label="Add column"
+                      onMouseEnter={(e) => {
+                        const tooltip = e.currentTarget.nextElementSibling;
+                        if (tooltip) tooltip.classList.add('tooltip-visible');
+                      }}
+                      onMouseLeave={(e) => {
+                        const tooltip = e.currentTarget.nextElementSibling;
+                        if (tooltip) tooltip.classList.remove('tooltip-visible');
+                      }}
+                    >
+                      <PlusIcon className="h-5 w-5" />
+                    </button>
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center">
+                      Add column
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                    </div>
+                  </div>
                   
                   {/**
                    * Delete task button
@@ -405,15 +429,34 @@ const DataTable: React.FC = () => {
                    * - Positioned next to the add column button
                    * - Uses red hover color to indicate destructive action
                    */}
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteTask(task.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 cursor-pointer transition-colors duration-200 rounded-md"
-                    aria-label="Delete task"
-                    title="Delete row"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
+                  {/**
+                   * Delete task button with custom tooltip
+                   * - Uses a hover state on the button itself to trigger the tooltip
+                   * - Tooltip appears immediately on hover with no delay
+                   * - Styled with consistent colors and rounded corners
+                   */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 cursor-pointer transition-colors duration-200 rounded-md tooltip-trigger"
+                      aria-label="Delete task"
+                      onMouseEnter={(e) => {
+                        const tooltip = e.currentTarget.nextElementSibling;
+                        if (tooltip) tooltip.classList.add('tooltip-visible');
+                      }}
+                      onMouseLeave={(e) => {
+                        const tooltip = e.currentTarget.nextElementSibling;
+                        if (tooltip) tooltip.classList.remove('tooltip-visible');
+                      }}
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center">
+                      Delete row
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

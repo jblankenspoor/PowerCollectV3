@@ -346,8 +346,13 @@ const DataTable: React.FC = () => {
              * - Fixed width ensures consistent layout
              * - flex-shrink-0 prevents it from collapsing when space is limited
              */}
-            <div className="w-[100px] flex-shrink-0 flex items-center justify-center border-l border-gray-200 bg-gray-50">
-              <span className="text-sm font-medium text-gray-500">ACTIONS</span>
+            {/**
+             * Actions column header
+             * - Width matches the action buttons container in the rows
+             * - Text is centered for better alignment
+             */}
+            <div className="w-[125px] flex-shrink-0 flex items-center justify-center border-l border-gray-200 bg-gray-50">
+              <span className="text-sm font-medium text-gray-500 text-center w-full">ACTIONS</span>
             </div>
           </div>
 
@@ -398,7 +403,12 @@ const DataTable: React.FC = () => {
                  * - Width increased to ensure tooltip text fits properly
                  * - Maintains other styling for consistency
                  */}
-                <div className="w-[120px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-1">
+                {/**
+                 * Action buttons container - width increased from 120px to 125px
+                 * - Width increased to ensure tooltip text fits properly
+                 * - Maintains other styling for consistency
+                 */}
+                <div className="w-[125px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-1">
                   {/**
                    * Add column button
                    * - Triggers handleAddColumn function when clicked
@@ -428,7 +438,7 @@ const DataTable: React.FC = () => {
                     >
                       <PlusIcon className="h-5 w-5" />
                     </button>
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[90px] text-center">
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[95px] text-center">
                       Add column
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                     </div>
@@ -463,7 +473,7 @@ const DataTable: React.FC = () => {
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[90px] text-center">
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[95px] text-center">
                       Delete row
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                     </div>

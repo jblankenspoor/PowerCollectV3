@@ -393,7 +393,12 @@ const DataTable: React.FC = () => {
                  * - Width increased to ensure tooltip text fits properly
                  * - Maintains other styling for consistency
                  */}
-                <div className="w-[110px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-1">
+                {/**
+                 * Action buttons container - width increased from 110px to 120px
+                 * - Width increased to ensure tooltip text fits properly
+                 * - Maintains other styling for consistency
+                 */}
+                <div className="w-[120px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-1">
                   {/**
                    * Add column button
                    * - Triggers handleAddColumn function when clicked
@@ -423,7 +428,7 @@ const DataTable: React.FC = () => {
                     >
                       <PlusIcon className="h-5 w-5" />
                     </button>
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center">
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[90px] text-center">
                       Add column
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                     </div>
@@ -458,7 +463,7 @@ const DataTable: React.FC = () => {
                     >
                       <TrashIcon className="h-5 w-5" />
                     </button>
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[85px] text-center">
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-3 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[90px] text-center">
                       Delete row
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                     </div>

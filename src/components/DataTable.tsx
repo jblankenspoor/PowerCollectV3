@@ -130,6 +130,7 @@ const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
  * Manages the state and rendering of the interactive data table
  */
 const DataTable: React.FC = () => {
+  // This is a test comment to verify the pull request review process
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   // State for columns with responsive width settings - adjusted to be narrower
@@ -302,8 +303,20 @@ const DataTable: React.FC = () => {
                 {column.title}
               </div>
             ))}
-            {/* Add column button */}
+            {/**
+             * Add column button container
+             * - Fixed width ensures consistent layout
+             * - flex-shrink-0 prevents it from collapsing when space is limited
+             * - Contains the button that adds a new column to the table
+             */}
             <div className="w-[100px] flex-shrink-0">
+              {/**
+               * Add column button
+               * - Triggers handleAddColumn function when clicked
+               * - Takes full width and height of its container
+               * - Uses subtle hover effect for better user feedback
+               * - Includes aria-label for accessibility
+               */}
               <button
                 type="button"
                 onClick={handleAddColumn}
@@ -331,7 +344,11 @@ const DataTable: React.FC = () => {
                     task[column.id]}
                   </div>
                 ))}
-                {/* Remove the spacer div or adjust its width to match the button */}
+                {/**
+                 * Spacer div that ensures consistent layout with the header
+                 * Width matches the add column button for proper alignment
+                 * flex-shrink-0 prevents it from collapsing when space is limited
+                 */}
                 <div className="w-[100px] bg-gray-50 border-l border-gray-200 flex-shrink-0"></div>
               </div>
               

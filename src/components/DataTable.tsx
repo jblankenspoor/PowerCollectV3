@@ -87,8 +87,9 @@ const DataTable: React.FC = () => {
   // Reference to the table container for measuring available space
   const tableRef = useRef<HTMLDivElement>(null);
   
-  // Use the custom table resize hook to handle table width and scroll notification
-  const { tableWidth, showScrollNotification } = useTableResize(
+  // Use the custom table resize hook to handle scroll notification
+  // We only need the showScrollNotification state for this component
+  const { showScrollNotification } = useTableResize(
     tableRef,
     [columns, tasks]
   );

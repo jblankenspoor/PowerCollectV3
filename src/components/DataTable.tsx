@@ -7,41 +7,31 @@
  * - Horizontal scrolling for many columns
  * 
  * Dependencies:
- * - React (useState, useEffect, useRef) for component state and lifecycle
+ * - React (useState, useRef) for component state management
  * - uuid for generating unique identifiers
- * - @heroicons/react for UI icons
+ * - Custom components for modular UI structure
+ * - Custom hooks for reusable logic
  * - Tailwind CSS for styling
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 
-// Define types for status and priority to ensure type safety
-type Status = 'Done' | 'In progress' | 'To do';
-type Priority = 'Low' | 'Medium' | 'High';
+// Import custom components
+import TableHeader from './TableHeader';
+import TableRow from './TableRow';
+import AddRowButton from './AddRowButton';
+import ScrollNotification from './ScrollNotification';
 
-// Column interface defines the structure for table columns
-interface Column {
-  id: string;       // Unique identifier for the column
-  title: string;    // Display title in the header
-  type: 'name' | 'status' | 'priority' | 'date' | 'text' | 'select';  // Column data type
-  width: string;    // CSS width class
-  minWidth?: string; // Minimum width for responsive behavior
-}
+// Import custom hooks
+import useTableResize from '../hooks/useTableResize';
 
-// Task interface defines the structure for task data
-interface Task {
-  id: string;       // Unique identifier for the task
-  name: string;     // Task name
-  status: Status;   // Current status
-  priority: Priority; // Priority level
-  startDate: string; // Start date as string
-  deadline: string;  // Deadline as string
-  [key: string]: string; // Allow dynamic properties for custom columns
-}
+// Import types
+import { Column, Task } from '../types/dataTypes';
 
-// Initial task data
+/**
+ * Initial task data with predefined tasks for demonstration
+ */
 const initialTasks: Task[] = [
   {
     id: uuidv4(),
@@ -70,62 +60,6 @@ const initialTasks: Task[] = [
 ];
 
 /**
- * StatusBadge component displays a colored badge for task status
- * - Green for Done
- * - Yellow for In progress
- * - Red for To do
- */
-const StatusBadge: React.FC<{ status: Status }> = ({ status }) => {
-  let bgColor = '';
-  let textColor = '';
-  
-  if (status === 'Done') {
-    bgColor = 'bg-green-100';
-    textColor = 'text-green-800';
-  } else if (status === 'In progress') {
-    bgColor = 'bg-yellow-100';
-    textColor = 'text-yellow-800';
-  } else { // To do
-    bgColor = 'bg-red-100';
-    textColor = 'text-red-800';
-  }
-  
-  return (
-    <span className={`inline-block px-2 py-1 rounded-md text-xs ${bgColor} ${textColor}`}>
-      {status}
-    </span>
-  );
-};
-
-/**
- * PriorityBadge component displays a colored badge for task priority
- * - Yellow for Low
- * - Orange for Medium
- * - Red for High
- */
-const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
-  let bgColor = '';
-  let textColor = '';
-  
-  if (priority === 'Low') {
-    bgColor = 'bg-yellow-100';
-    textColor = 'text-yellow-800';
-  } else if (priority === 'Medium') {
-    bgColor = 'bg-orange-100';
-    textColor = 'text-orange-800';
-  } else { // High
-    bgColor = 'bg-red-100';
-    textColor = 'text-red-800';
-  }
-  
-  return (
-    <span className={`inline-block px-2 py-1 rounded-md text-xs ${bgColor} ${textColor}`}>
-      {priority}
-    </span>
-  );
-};
-
-/**
  * Main DataTable component
  * Manages the state and rendering of the interactive data table
  */
@@ -134,7 +68,7 @@ const DataTable: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   
-  // State for columns with responsive width settings - adjusted to be narrower
+  // State for columns with responsive width settings
   const [columns, setColumns] = useState<Column[]>([
     // Select column with sufficient width for 'Deselect All' button
     { id: 'select', title: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
@@ -145,14 +79,14 @@ const DataTable: React.FC = () => {
     { id: 'deadline', title: 'DEADLINE', type: 'date', width: 'w-32', minWidth: 'min-w-[120px]' },
   ]);
   
-  // State to track if horizontal scrolling is needed
-  const [showScrollNotification, setShowScrollNotification] = useState(false);
-  
-  // State to track the table width for proper alignment of bottom button
-  const [tableWidth, setTableWidth] = useState(0);
-  
   // Reference to the table container for measuring available space
   const tableRef = useRef<HTMLDivElement>(null);
+  
+  // Use the custom table resize hook to handle table width and scroll notification
+  const { tableWidth, showScrollNotification } = useTableResize(
+    tableRef,
+    [columns, tasks]
+  );
 
   /**
    * Handles the selection/deselection of a task
@@ -172,23 +106,42 @@ const DataTable: React.FC = () => {
   };
 
   /**
-   * Handles selecting or deselecting all tasks
+   * Handles the selection/deselection of all tasks
    * @param selectAll - Whether to select or deselect all tasks
    */
   const handleSelectAll = (selectAll: boolean) => {
     if (selectAll) {
-      setSelectedTasks(new Set(tasks.map(task => task.id)));
+      // Select all tasks
+      const allTaskIds = tasks.map(task => task.id);
+      setSelectedTasks(new Set(allTaskIds));
     } else {
+      // Deselect all tasks
       setSelectedTasks(new Set());
     }
   };
 
   /**
-   * Removes a task from the table and from selection if selected
+   * Adds a new task to the table
+   */
+  const handleAddTask = () => {
+    const newTask: Task = {
+      id: uuidv4(),
+      name: 'New Task',
+      status: 'To do',
+      priority: 'Medium',
+      startDate: 'Not set',
+      deadline: 'Not set',
+    };
+    
+    setTasks(prev => [...prev, newTask]);
+  };
+
+  /**
+   * Deletes a task from the table
    * @param taskId - The unique identifier of the task to delete
    */
   const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
+    setTasks(prev => prev.filter(task => task.id !== taskId));
     setSelectedTasks(prev => {
       const newSet = new Set(prev);
       newSet.delete(taskId);
@@ -196,122 +149,39 @@ const DataTable: React.FC = () => {
     });
   };
 
-  // Function to handle adding a new column
+  /**
+   * Adds a new column to the table
+   */
   const handleAddColumn = () => {
-    const newColumnId = `column_${uuidv4()}`;
+    const newColumnId = `column${columns.length}`;
     const newColumn: Column = {
       id: newColumnId,
-      title: 'New Column',
+      title: `COLUMN ${columns.length}`,
       type: 'text',
       width: 'w-32',
-      minWidth: 'min-w-[120px]'
+      minWidth: 'min-w-[100px]',
     };
     
-    // Add the column definition
-    setColumns([...columns, newColumn]);
+    // Add the new column to the columns array
+    setColumns(prev => [...prev, newColumn]);
     
-    // Add empty values for the new column to all tasks
-    setTasks(tasks.map(task => ({
+    // Add the new column data to each task
+    setTasks(prev => prev.map(task => ({
       ...task,
-      [newColumnId]: ''
+      [newColumnId]: 'New data',
     })));
   };
 
   /**
-   * Adds a new task to the table with default values
-   * Creates dates in Dutch format with the current date as start
-   * and current date + 3 days as deadline
+   * Render method for the DataTable component
+   * Uses modular components for better maintainability and performance
    */
-  const handleAddTask = () => {
-    const today = new Date();
-    const newTask: Task = {
-      id: uuidv4(),
-      name: 'New Task',
-      status: 'To do',
-      priority: 'Medium',
-      startDate: today.toLocaleDateString('nl-NL', { 
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }),
-      deadline: new Date(today.setDate(today.getDate() + 3)).toLocaleDateString('nl-NL', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }),
-    };
-    setTasks([...tasks, newTask]);
-  };
-
-  // Effect to adjust table layout on window resize and ensure horizontal scrolling works
-  useEffect(() => {
-    const handleResize = () => {
-      // Force table to recalculate its layout on resize
-      if (tableRef.current && tableRef.current.parentElement) {
-        // Get the actual width of content
-        const tableContainer = tableRef.current.firstChild as HTMLElement;
-        if (!tableContainer) return;
-        
-        // Set the width of the outer container to match its content
-        // This ensures no extra whitespace is displayed
-        const contentWidth = tableContainer.getBoundingClientRect().width;
-        tableRef.current.style.width = `${contentWidth}px`;
-        
-        // Update tableWidth state for the Add Task button alignment
-        setTableWidth(contentWidth);
-        
-        // Ensure scrollbar appears when needed
-        const containerWidth = tableRef.current.parentElement.clientWidth || 0;
-        
-        if (contentWidth > containerWidth) {
-          tableRef.current.parentElement.classList.add('overflow-x-auto');
-          setShowScrollNotification(true);
-        } else {
-          setShowScrollNotification(false);
-        }
-      }
-    };
-    
-    // Initial setup
-    setTimeout(handleResize, 100); // Slight delay to ensure DOM is ready
-    
-    // Add resize listener
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [columns.length]); // Re-run when columns change
-  
-  // Effect to handle scroll events and hide notification after user scrolls
-  useEffect(() => {
-    const handleScroll = () => {
-      if (showScrollNotification && tableRef.current?.parentElement) {
-        // Hide notification after user has scrolled horizontally
-        const scrollLeft = tableRef.current.parentElement.scrollLeft;
-        if (scrollLeft > 50) {
-          setShowScrollNotification(false);
-        }
-      }
-    };
-    
-    // Add scroll listener to the table's parent element
-    const parentElement = tableRef.current?.parentElement;
-    if (parentElement) {
-      parentElement.addEventListener('scroll', handleScroll);
-      return () => parentElement.removeEventListener('scroll', handleScroll);
-    }
-  }, [showScrollNotification]);
-
   return (
     // Main container with full width
     <div className="w-full">
-      {/* Scroll notification - appears when horizontal scrolling is needed */}
-      {showScrollNotification && (
-        <div className="flex justify-end mb-2">
-          <div className="bg-blue-500 text-white px-3 py-1 text-sm rounded-md animate-pulse inline-flex items-center">
-            <span>Scroll right to see more columns</span>
-            <span className="ml-1 text-lg">→</span>
-          </div>
-        </div>
-      )}
+      {/* Scroll notification component for horizontal scrolling indication */}
+      <ScrollNotification show={showScrollNotification} />
+      
       {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
       <div 
         ref={tableRef}
@@ -320,203 +190,33 @@ const DataTable: React.FC = () => {
       >
         {/* Table container - w-max ensures it only takes the space it needs */}
         <div className="w-max table-fixed">
-          {/* Table Header */}
-          <div className="flex border-b border-gray-200 bg-gray-50">
-            {/* First cell is for Select All button */}
-            <div className={`${columns[0].width} ${columns[0].minWidth || ''} p-4 flex justify-center items-center`}>
-              <button
-                onClick={() => handleSelectAll(selectedTasks.size < tasks.length)}
-                className="w-full px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-              >
-                {selectedTasks.size === tasks.length ? 'Deselect All' : 'Select All'}
-              </button>
-            </div>
-            {/* Map through columns to create header cells (skip the first select column as we handle it separately) */}
-            {columns.slice(1).map(column => (
-              <div 
-                key={column.id} 
-                className={`${column.width} ${column.minWidth || ''} p-4 flex items-center font-medium text-gray-500 text-sm whitespace-nowrap`}
-              >
-                {column.title}
-              </div>
-            ))}
-            {/**
-             * Action buttons header container
-             * - Contains space for the add column and delete buttons that will appear in rows
-             * - Fixed width ensures consistent layout
-             * - flex-shrink-0 prevents it from collapsing when space is limited
-             */}
-            {/**
-             * Actions column header
-             * - Width matches the action buttons container in the rows (130px)
-             * - Text is centered for better alignment
-             */}
-            <div className="w-[130px] flex-shrink-0 flex items-center justify-center border-l border-gray-200 bg-gray-50">
-              <span className="text-sm font-medium text-gray-500 text-center w-full">ACTIONS</span>
-            </div>
-          </div>
+          {/* Table Header Component */}
+          <TableHeader 
+            columns={columns}
+            allSelected={selectedTasks.size === tasks.length && tasks.length > 0}
+            onSelectAll={handleSelectAll}
+          />
 
-          {/* Table Body */}
+          {/* Table Body - Map through tasks to create rows */}
           {tasks.map(task => (
-            <div key={task.id} className="group relative">
-              {/* Row content with trash can */}
-              <div className="flex border-b border-gray-200">
-                {/* First cell for checkbox */}
-                <div 
-                  className={`${columns[0].width} ${columns[0].minWidth || ''} p-4 flex-shrink-0 flex justify-center items-center hover:bg-blue-50/80 overflow-hidden`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedTasks.has(task.id)}
-                    onChange={(e) => handleSelectTask(task.id, e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                </div>
-                
-                {/* Map through remaining columns to create cells for this row */}
-                {columns.slice(1).map(column => (
-                  <div 
-                    key={column.id} 
-                    className={`${column.width} ${column.minWidth || ''} p-4 flex-shrink-0 flex items-center hover:bg-blue-50/80 overflow-hidden`}
-                  >
-                    {column.type === 'status' ? (
-                      <StatusBadge status={task[column.id] as Status} />
-                    ) : column.type === 'priority' ? (
-                      <PriorityBadge priority={task[column.id] as Priority} />
-                    ) : task[column.id]}
-                  </div>
-                ))}
-                {/**
-                 * Action buttons container
-                 * - Contains both add column and delete buttons next to each other
-                 * - Fixed width ensures consistent layout
-                 * - flex-shrink-0 prevents it from collapsing when space is limited
-                 * - border-l provides visual separation from data cells
-                 */}
-                {/**
-                 * Action buttons container - width increased from 100px to 110px
-                 * - Width increased to ensure tooltip text fits properly
-                 * - Maintains other styling for consistency
-                 */}
-                {/**
-                 * Action buttons container - width increased from 110px to 120px
-                 * - Width increased to ensure tooltip text fits properly
-                 * - Maintains other styling for consistency
-                 */}
-                {/**
-                 * Action buttons container - width increased to 130px
-                 * - Width increased to ensure tooltip text fits properly
-                 * - Gap reduced to bring icons closer together
-                 * - Maintains other styling for consistency
-                 */}
-                <div className="w-[130px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-0">
-                  {/**
-                   * Add column button
-                   * - Triggers handleAddColumn function when clicked
-                   * - Positioned next to the delete button for better UX
-                   * - Uses subtle hover effect for better user feedback
-                   */}
-                  {/**
-                   * Add column button with custom tooltip
-                   * - Uses a hover state on the button itself to trigger the tooltip
-                   * - Tooltip appears immediately on hover with no delay
-                   * - Styled with consistent colors and rounded corners
-                   */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={handleAddColumn}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors duration-200 rounded-md tooltip-trigger"
-                      aria-label="Add column"
-                      onMouseEnter={(e) => {
-                        const tooltip = e.currentTarget.nextElementSibling;
-                        if (tooltip) tooltip.classList.add('tooltip-visible');
-                      }}
-                      onMouseLeave={(e) => {
-                        const tooltip = e.currentTarget.nextElementSibling;
-                        if (tooltip) tooltip.classList.remove('tooltip-visible');
-                      }}
-                    >
-                      <PlusIcon className="h-5 w-5" />
-                    </button>
-                    {/**
-                     * Add column tooltip
-                     * - Minimal padding with px-0.5 for horizontal spacing
-                     * - Reduced minimum width to 80px
-                     * - Positioned with proper alignment
-                     */}
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-0.5 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center">
-                      Add column
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-                    </div>
-                  </div>
-                  
-                  {/**
-                   * Delete task button
-                   * - Triggers handleDeleteTask function when clicked
-                   * - Positioned next to the add column button
-                   * - Uses red hover color to indicate destructive action
-                   */}
-                  {/**
-                   * Delete task button with custom tooltip
-                   * - Uses a hover state on the button itself to trigger the tooltip
-                   * - Tooltip appears immediately on hover with no delay
-                   * - Styled with consistent colors and rounded corners
-                   */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteTask(task.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 cursor-pointer transition-colors duration-200 rounded-md tooltip-trigger"
-                      aria-label="Delete task"
-                      onMouseEnter={(e) => {
-                        const tooltip = e.currentTarget.nextElementSibling;
-                        if (tooltip) tooltip.classList.add('tooltip-visible');
-                      }}
-                      onMouseLeave={(e) => {
-                        const tooltip = e.currentTarget.nextElementSibling;
-                        if (tooltip) tooltip.classList.remove('tooltip-visible');
-                      }}
-                    >
-                      <TrashIcon className="h-5 w-5" />
-                    </button>
-                    {/**
-                     * Delete row tooltip
-                     * - Minimal padding with px-0.5 for horizontal spacing
-                     * - Reduced minimum width to 80px
-                     * - Positioned with proper alignment
-                     */}
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-0.5 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center">
-                      Delete row
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TableRow
+              key={task.id}
+              task={task}
+              columns={columns}
+              isSelected={selectedTasks.has(task.id)}
+              onSelectTask={handleSelectTask}
+              onAddColumn={handleAddColumn}
+              onDeleteTask={handleDeleteTask}
+            />
           ))}
-
-          {/* Add Task Button */}
-          {/* Add task button at the bottom of the table */}
-          {/**
-           * Add task button container
-           * - Full width to match the table above it
-           * - Uses table-layout to ensure proper alignment with table columns
-           */}
-          <div className="flex w-full">
-            <button
-              onClick={handleAddTask}
-              className="flex-1 flex justify-center items-center p-4 border-t border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors duration-200 w-full"
-              aria-label="Add task"
-              style={{ width: tableWidth > 0 ? `${tableWidth}px` : '100%' }}
-            >
-              <PlusIcon className="h-5 w-5" />
-            </button>
-            {/* Add a spacer to ensure proper alignment with the action buttons */}
-            <div className="w-[100px] bg-gray-50 border-t border-gray-200 shrink-0"></div>
-          </div>
         </div>
       </div>
+      
+      {/* Add row button component below the table */}
+      <AddRowButton 
+        onAddRow={handleAddTask}
+        tableWidth={tableWidth}
+      />
     </div>
   );
 };

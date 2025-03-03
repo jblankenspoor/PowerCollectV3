@@ -2,14 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Apply custom component styles */
+/* Apply custom component styles - using @layer to properly organize Tailwind CSS */
 @layer components {
   /* Button styles */
   .action-button {
     @apply p-1.5 text-gray-400 cursor-pointer transition-colors duration-200 rounded-md;
   }
   
-  /* Tooltip container */
+  /* Tooltip container - positioned absolutely with transform for centering */
   .tooltip-container {
     @apply absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-0.5 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center;
   }
@@ -30,37 +30,45 @@
   }
 }
 
-/* Custom tooltip styles */
+/* Custom tooltip styles - controls visibility state */
 .tooltip-visible {
   opacity: 1 !important;
 }
 
-/* Custom styles for DataTable */
+/* Custom styles for DataTable - ensures proper horizontal scrolling */
 .overflow-x-auto {
   overflow-x: auto !important;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
-/* Ensure sticky elements work correctly */
+/* Ensure sticky elements work correctly - applied to header elements */
 .sticky {
   position: sticky !important;
   z-index: 10;
+  top: 0; /* Ensures stickiness at the top */
 }
 
+/* Base body styles */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background-color: #f9fafb;
   color: #111827;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 button {
   cursor: pointer;
 }
 
-/* Custom styles for checkboxes */
+/* Custom styles for checkboxes - consistent sizing and appearance */
 input[type="checkbox"] {
   width: 14px;
   height: 14px;
+  cursor: pointer;
+  accent-color: #3b82f6; /* Blue color for checked state */
 }
 
 /* Header styles */
@@ -68,7 +76,7 @@ h1 {
   margin-bottom: 0.25rem;
 }
 
-/* Badge styles */
+/* Badge styles - color definitions for status and priority indicators */
 .bg-green-100 {
   background-color: #ecfdf5;
 }
@@ -95,5 +103,10 @@ h1 {
 }
 .text-orange-800 {
   color: #9a3412;
+}
+
+/* Ensure all elements use the border-box model */
+* {
+  box-sizing: border-box;
 }
 

@@ -20,8 +20,8 @@ import { v4 as uuidv4 } from 'uuid';
 // Import custom components
 import TableHeader from './TableHeader';
 import TableRow from './TableRow';
-import AddRowButton from './AddRowButton';
 import ScrollNotification from './ScrollNotification';
+import ColumnActionRow from './ColumnActionRow';
 
 // Import custom hooks
 import useTableResize from '../hooks/useTableResize';
@@ -150,17 +150,26 @@ const DataTable: React.FC = () => {
   };
 
   /**
-   * Adds a new column to the table
+   * Adds a new column to the table (helper function for creating a column)
+   * @param columnName - Name of the column
+   * @returns Column - The new column object
    */
-  const handleAddColumn = () => {
-    const newColumnId = `column${columns.length}`;
-    const newColumn: Column = {
+  const createNewColumn = (columnName: string): Column => {
+    const newColumnId = `column${uuidv4().substring(0, 8)}`;
+    return {
       id: newColumnId,
-      title: `COLUMN ${columns.length}`,
+      title: columnName,
       type: 'text',
       width: 'w-32',
       minWidth: 'min-w-[100px]',
     };
+  };
+
+  /**
+   * Adds a new column to the table at the right end
+   */
+  const handleAddColumn = () => {
+    const newColumn = createNewColumn(`COLUMN ${columns.length}`);
     
     // Add the new column to the columns array
     setColumns(prev => [...prev, newColumn]);
@@ -168,8 +177,70 @@ const DataTable: React.FC = () => {
     // Add the new column data to each task
     setTasks(prev => prev.map(task => ({
       ...task,
-      [newColumnId]: 'New data',
+      [newColumn.id]: 'New data',
     })));
+  };
+
+  /**
+   * Adds a column to the left of the specified column index
+   * @param columnIndex - Index of the column to add to the left of
+   */
+  const handleAddColumnLeft = (columnIndex: number) => {
+    const newColumn = createNewColumn(`COLUMN L${columnIndex}`);
+    
+    // Insert the new column at the specified index
+    setColumns(prev => [
+      ...prev.slice(0, columnIndex),
+      newColumn,
+      ...prev.slice(columnIndex)
+    ]);
+    
+    // Add the new column data to each task
+    setTasks(prev => prev.map(task => ({
+      ...task,
+      [newColumn.id]: 'New data',
+    })));
+  };
+
+  /**
+   * Adds a column to the right of the specified column index
+   * @param columnIndex - Index of the column to add to the right of
+   */
+  const handleAddColumnRight = (columnIndex: number) => {
+    const newColumn = createNewColumn(`COLUMN R${columnIndex}`);
+    
+    // Insert the new column after the specified index
+    setColumns(prev => [
+      ...prev.slice(0, columnIndex + 1),
+      newColumn,
+      ...prev.slice(columnIndex + 1)
+    ]);
+    
+    // Add the new column data to each task
+    setTasks(prev => prev.map(task => ({
+      ...task,
+      [newColumn.id]: 'New data',
+    })));
+  };
+
+  /**
+   * Deletes a column from the table
+   * @param columnId - ID of the column to delete
+   * @param columnIndex - Index of the column to delete
+   */
+  const handleDeleteColumn = (columnId: string, columnIndex: number) => {
+    // Don't allow deleting the select or name columns (indexes 0 and 1)
+    if (columnIndex <= 1) return;
+    
+    // Remove the column from the columns array
+    setColumns(prev => prev.filter(col => col.id !== columnId));
+    
+    // Remove the column data from each task
+    setTasks(prev => prev.map(task => {
+      const newTask = {...task};
+      delete newTask[columnId];
+      return newTask;
+    }));
   };
 
   /**
@@ -196,6 +267,14 @@ const DataTable: React.FC = () => {
             allSelected={selectedTasks.size === tasks.length && tasks.length > 0}
             onSelectAll={handleSelectAll}
           />
+          
+          {/* Column Action Row - Provides column manipulation controls */}
+          <ColumnActionRow
+            columns={columns}
+            onAddColumnLeft={handleAddColumnLeft}
+            onAddColumnRight={handleAddColumnRight}
+            onDeleteColumn={handleDeleteColumn}
+          />
 
           {/* Table Body - Map through tasks to create rows */}
           {tasks.map(task => (
@@ -209,14 +288,17 @@ const DataTable: React.FC = () => {
               onDeleteTask={handleDeleteTask}
             />
           ))}
+          
+          {/* Add row button integrated into the table */}
+          <div className="flex border-t border-gray-200">
+            <div className="flex-1 py-2 bg-white hover:bg-gray-50 transition-colors duration-200 cursor-pointer" onClick={handleAddTask}>
+              <div className="flex items-center justify-center text-blue-500">
+                <span className="mr-1 font-medium">+</span> Add row
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      
-      {/* Add row button component below the table */}
-      <AddRowButton 
-        onAddRow={handleAddTask}
-        tableWidth={tableWidth}
-      />
     </div>
   );
 };

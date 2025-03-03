@@ -31,6 +31,21 @@
   .status-badge {
     @apply px-2 py-1 text-xs rounded-full;
   }
+  
+  /* Column action buttons - consistent styling for manipulating columns */
+  .column-action-button {
+    @apply p-1.5 text-gray-400 cursor-pointer transition-colors duration-200 rounded-md;
+  }
+  
+  /* Tooltip container for column actions */
+  .tooltip-container {
+    @apply absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-0.5 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 transition-opacity duration-100 whitespace-nowrap z-10 min-w-[80px] text-center;
+  }
+  
+  /* Tooltip arrow for column actions */
+  .tooltip-arrow {
+    @apply absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800;
+  }
 }
 
 /* Custom tooltip styles - controls visibility state */

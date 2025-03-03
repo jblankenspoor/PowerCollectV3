@@ -50,7 +50,7 @@ const TableRow: React.FC<TableRowProps> = ({
     switch (column.type) {
       case 'select':
         return (
-          <div className="flex justify-center items-center h-full">
+          <div className="flex justify-center items-center h-full w-full">
             <input 
               type="checkbox" 
               checked={isSelected}
@@ -99,7 +99,7 @@ const TableRow: React.FC<TableRowProps> = ({
       {columns.map(column => (
         <div 
           key={`${task.id}-${column.id}`}
-          className={`${column.width} ${column.minWidth || ''} p-4 flex items-center`}
+          className={`${column.width} ${column.minWidth || ''} p-4 flex ${column.type === 'select' ? 'justify-center' : ''} items-center`}
         >
           {renderCell(column)}
         </div>

@@ -24,9 +24,13 @@ interface ActionCellProps {
  * @param {ActionCellProps} props - Component props
  * @returns {JSX.Element} Rendered component
  */
+/**
+ * ActionCell component renders the action buttons for each row
+ * - Buttons are centered for better visibility and alignment
+ * - Maintains consistent styling with the rest of the table
+ */
 const ActionCell: React.FC<ActionCellProps> = ({ taskId, onAddColumn, onDeleteTask }) => {
   return (
-    {/* Action cell with centered buttons for better visibility */}
     <div className="w-[130px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-0 p-4">
       {/* Add column button with tooltip */}
       <TooltipButton

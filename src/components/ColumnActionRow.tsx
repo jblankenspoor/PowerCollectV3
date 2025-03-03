@@ -85,37 +85,30 @@ const ColumnActionRow: React.FC<ColumnActionRowProps> = ({
   return (
     <div className="flex border-b border-gray-200 bg-gray-50 py-1">
       {/* Map through all columns to create action cells */}
+      {/* Select column is centered, all other columns are left-aligned with padding */}
       {columns.map((column, index) => (
         <div 
           key={`action-${column.id}`} 
-          className={`${column.width} ${column.minWidth || ''} flex items-center justify-center gap-0`}
+          className={`${column.width} ${column.minWidth || ''} flex items-center ${index === 0 ? 'justify-center' : 'justify-start'} gap-0 ${index !== 0 ? 'pl-4' : ''}`}
         >
-          {/* Skip delete option for essential columns (select, name) */}
-          {index <= 1 ? (
-            <div className="flex items-center justify-center gap-1">
-              {/* Add column to the right button */}
-              <ColumnActionButton
-                onClick={() => onAddColumnRight(index)}
-                tooltipText="Add column right"
-                ariaLabel="Add column to the right"
-              >
-                <div className="flex flex-col items-center justify-center -space-y-1">
-                  <PlusIcon className="h-3.5 w-3.5" />
-                  <ArrowRightIcon className="h-4 w-4" />
-                </div>
-              </ColumnActionButton>
+          {/* Special handling for different column types */}
+          {index === 0 ? (
+            // Select column - no actions
+            <div className="flex items-center justify-start gap-1">
+              {/* No actions for the Select column */}
             </div>
-          ) : (
-            <div className="flex items-center justify-center gap-1">
+          ) : index === 1 ? (
+            // Name column - can be modified like other columns
+            <div className="flex items-center justify-start gap-1">
               {/* Add column to the left button */}
               <ColumnActionButton
                 onClick={() => onAddColumnLeft(index)}
                 tooltipText="Add column left"
                 ariaLabel="Add column to the left"
               >
-                <div className="flex flex-col items-center justify-center -space-y-1">
+                <div className="flex flex-col items-center justify-center space-y-0.5">
                   <PlusIcon className="h-3.5 w-3.5" />
-                  <ArrowLeftIcon className="h-4 w-4" />
+                  <ArrowLeftIcon className="h-3.5 w-3.5" />
                 </div>
               </ColumnActionButton>
               
@@ -125,9 +118,9 @@ const ColumnActionRow: React.FC<ColumnActionRowProps> = ({
                 tooltipText="Add column right"
                 ariaLabel="Add column to the right"
               >
-                <div className="flex flex-col items-center justify-center -space-y-1">
+                <div className="flex flex-col items-center justify-center space-y-0.5">
                   <PlusIcon className="h-3.5 w-3.5" />
-                  <ArrowRightIcon className="h-4 w-4" />
+                  <ArrowRightIcon className="h-3.5 w-3.5" />
                 </div>
               </ColumnActionButton>
               
@@ -138,9 +131,48 @@ const ColumnActionRow: React.FC<ColumnActionRowProps> = ({
                 ariaLabel="Delete column"
                 colorClass="red"
               >
-                <div className="flex flex-col items-center justify-center -space-y-1">
-                  <TrashIcon className="h-4 w-4" />
-                  <ArrowDownIcon className="h-3 w-3" />
+                <div className="flex flex-col items-center justify-center space-y-0.5">
+                  <TrashIcon className="h-3.5 w-3.5" />
+                  <ArrowDownIcon className="h-3.5 w-3.5" />
+                </div>
+              </ColumnActionButton>
+            </div>
+          ) : (
+            <div className="flex items-center justify-start gap-1">
+              {/* Add column to the left button */}
+              <ColumnActionButton
+                onClick={() => onAddColumnLeft(index)}
+                tooltipText="Add column left"
+                ariaLabel="Add column to the left"
+              >
+                <div className="flex flex-col items-center justify-center space-y-0.5">
+                  <PlusIcon className="h-3.5 w-3.5" />
+                  <ArrowLeftIcon className="h-3.5 w-3.5" />
+                </div>
+              </ColumnActionButton>
+              
+              {/* Add column to the right button */}
+              <ColumnActionButton
+                onClick={() => onAddColumnRight(index)}
+                tooltipText="Add column right"
+                ariaLabel="Add column to the right"
+              >
+                <div className="flex flex-col items-center justify-center space-y-0.5">
+                  <PlusIcon className="h-3.5 w-3.5" />
+                  <ArrowRightIcon className="h-3.5 w-3.5" />
+                </div>
+              </ColumnActionButton>
+              
+              {/* Delete column button */}
+              <ColumnActionButton
+                onClick={() => onDeleteColumn(column.id, index)}
+                tooltipText="Delete column"
+                ariaLabel="Delete column"
+                colorClass="red"
+              >
+                <div className="flex flex-col items-center justify-center space-y-0.5">
+                  <TrashIcon className="h-3.5 w-3.5" />
+                  <ArrowDownIcon className="h-3.5 w-3.5" />
                 </div>
               </ColumnActionButton>
             </div>
@@ -148,8 +180,8 @@ const ColumnActionRow: React.FC<ColumnActionRowProps> = ({
         </div>
       ))}
       
-      {/* Empty cell for the actions column */}
-      <div className="w-[130px] flex-shrink-0 border-l border-gray-200 bg-gray-50"></div>
+      {/* Empty cell for the actions column - centered for consistency */}
+      <div className="w-[130px] flex-shrink-0 border-l border-gray-200 bg-gray-50 p-4 flex justify-center"></div>
     </div>
   );
 };

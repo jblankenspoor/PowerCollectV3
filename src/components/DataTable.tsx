@@ -68,15 +68,20 @@ const DataTable: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   
-  // State for columns with responsive width settings
+  /**
+   * State for columns with fixed width settings
+   * - Each column has a fixed width to ensure consistency across the table
+   * - The Select column is centered while all other columns are left-aligned
+   * - Width values are chosen to accommodate the content in each column
+   */
   const [columns, setColumns] = useState<Column[]>([
     // Select column with sufficient width for 'Deselect All' button
     { id: 'select', title: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
-    { id: 'name', title: 'NAME', type: 'name', width: 'w-48', minWidth: 'min-w-[150px]' },
-    { id: 'status', title: 'STATUS', type: 'status', width: 'w-32', minWidth: 'min-w-[100px]' },
-    { id: 'priority', title: 'PRIORITY', type: 'priority', width: 'w-32', minWidth: 'min-w-[100px]' },
-    { id: 'startDate', title: 'START DATE', type: 'date', width: 'w-32', minWidth: 'min-w-[120px]' },
-    { id: 'deadline', title: 'DEADLINE', type: 'date', width: 'w-32', minWidth: 'min-w-[120px]' },
+    { id: 'name', title: 'NAME', type: 'name', width: 'w-48', minWidth: 'min-w-[192px]' },
+    { id: 'status', title: 'STATUS', type: 'status', width: 'w-36', minWidth: 'min-w-[144px]' },
+    { id: 'priority', title: 'PRIORITY', type: 'priority', width: 'w-36', minWidth: 'min-w-[144px]' },
+    { id: 'startDate', title: 'START DATE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
+    { id: 'deadline', title: 'DEADLINE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
   ]);
   
   // Reference to the table container for measuring available space
@@ -155,13 +160,15 @@ const DataTable: React.FC = () => {
    * @returns Column - The new column object
    */
   const createNewColumn = (columnName: string): Column => {
+    // Generate a unique ID for the new column
     const newColumnId = `column${uuidv4().substring(0, 8)}`;
+    // Return a new column with fixed width for consistency
     return {
       id: newColumnId,
       title: columnName,
       type: 'text',
-      width: 'w-32',
-      minWidth: 'min-w-[100px]',
+      width: 'w-36', // Fixed width for consistency with other columns
+      minWidth: 'min-w-[144px]',
     };
   };
 
@@ -229,8 +236,8 @@ const DataTable: React.FC = () => {
    * @param columnIndex - Index of the column to delete
    */
   const handleDeleteColumn = (columnId: string, columnIndex: number) => {
-    // Don't allow deleting the select or name columns (indexes 0 and 1)
-    if (columnIndex <= 1) return;
+    // Don't allow deleting the select column (index 0)
+    if (columnIndex === 0) return;
     
     // Remove the column from the columns array
     setColumns(prev => prev.filter(col => col.id !== columnId));
@@ -250,15 +257,17 @@ const DataTable: React.FC = () => {
   return (
     // Main container with full width
     <div className="w-full">
-      {/* Scroll notification component for horizontal scrolling indication */}
-      <ScrollNotification show={showScrollNotification} />
-      
-      {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
-      <div 
-        ref={tableRef}
-        className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto inline-block"
-        style={{ maxWidth: '100%' }} /* Ensures it doesn't exceed viewport width */
-      >
+      {/* Outer wrapper with relative positioning for scroll notification */}
+      <div className="relative">
+        {/* Scroll notification component for horizontal scrolling indication */}
+        <ScrollNotification show={showScrollNotification} />
+        
+        {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
+        <div 
+          ref={tableRef}
+          className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto inline-block"
+          style={{ maxWidth: '100%' }} /* Ensures it doesn't exceed viewport width */
+        >
         {/* Table container - w-max ensures it only takes the space it needs */}
         <div className="w-max table-fixed">
           {/* Table Header Component */}
@@ -298,6 +307,7 @@ const DataTable: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

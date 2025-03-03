@@ -21,7 +21,7 @@ const ScrollNotification: React.FC<ScrollNotificationProps> = ({ show }) => {
   if (!show) return null;
   
   return (
-    <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-blue-500 text-white px-3 py-2 rounded-lg shadow-md animate-pulse">
+    <div className="absolute right-4 top-10 translate-x-1/2 bg-blue-500 text-white px-3 py-2 rounded-lg shadow-md animate-pulse z-20 whitespace-nowrap">
       <div className="flex items-center">
         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

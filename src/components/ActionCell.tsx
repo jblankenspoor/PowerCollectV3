@@ -26,7 +26,8 @@ interface ActionCellProps {
  */
 const ActionCell: React.FC<ActionCellProps> = ({ taskId, onAddColumn, onDeleteTask }) => {
   return (
-    <div className="w-[130px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-0">
+    {/* Action cell with centered buttons for better visibility */}
+    <div className="w-[130px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-0 p-4">
       {/* Add column button with tooltip */}
       <TooltipButton
         onClick={onAddColumn}

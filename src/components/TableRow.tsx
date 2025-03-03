@@ -49,8 +49,9 @@ const TableRow: React.FC<TableRowProps> = ({
     // Render different cell types based on column.type
     switch (column.type) {
       case 'select':
+        // Checkbox is centered in the cell for better visibility
         return (
-          <div className="flex justify-center items-center h-full w-full">
+          <div className="flex items-center justify-center h-full w-full">
             <input 
               type="checkbox" 
               checked={isSelected}
@@ -96,10 +97,11 @@ const TableRow: React.FC<TableRowProps> = ({
   return (
     <div className="flex border-b border-gray-200 hover:bg-gray-50 transition-colors">
       {/* Map through columns to create cells */}
+      {/* Select column is centered, all other columns are left-aligned */}
       {columns.map(column => (
         <div 
           key={`${task.id}-${column.id}`}
-          className={`${column.width} ${column.minWidth || ''} p-4 flex ${column.type === 'select' ? 'justify-center' : ''} items-center`}
+          className={`${column.width} ${column.minWidth || ''} p-4 flex items-center ${column.type === 'select' ? 'justify-center' : 'justify-start'} h-full`}
         >
           {renderCell(column)}
         </div>

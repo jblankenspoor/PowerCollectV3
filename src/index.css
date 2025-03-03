@@ -1,6 +1,9 @@
+/* postcss-apply: ignore next */
+/* stylelint-disable */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* stylelint-enable */
 
 /* Apply custom component styles - using @layer to properly organize Tailwind CSS */
 @layer components {
@@ -109,4 +112,3 @@ h1 {
 * {
   box-sizing: border-box;
 }
-

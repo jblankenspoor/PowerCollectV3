@@ -291,7 +291,7 @@ const DataTable: React.FC = () => {
           
           {/* Add row button integrated into the table */}
           <div className="flex border-t border-gray-200">
-            <div className="flex-1 py-2 bg-white hover:bg-gray-50 transition-colors duration-200 cursor-pointer" onClick={handleAddTask}>
+            <div className="flex-1 py-2 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 cursor-pointer" onClick={handleAddTask}>
               <div className="flex items-center justify-center text-blue-500">
                 <span className="mr-1 font-medium">+</span> Add row
               </div>

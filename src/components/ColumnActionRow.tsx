@@ -99,9 +99,9 @@ const ColumnActionRow: React.FC<ColumnActionRowProps> = ({
                 tooltipText="Add column right"
                 ariaLabel="Add column to the right"
               >
-                <div className="flex items-center">
-                  <ArrowRightIcon className="h-4 w-4 mr-0.5" />
+                <div className="flex flex-col items-center justify-center -space-y-1">
                   <PlusIcon className="h-3.5 w-3.5" />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </div>
               </ColumnActionButton>
             </div>
@@ -113,8 +113,8 @@ const ColumnActionRow: React.FC<ColumnActionRowProps> = ({
                 tooltipText="Add column left"
                 ariaLabel="Add column to the left"
               >
-                <div className="flex items-center">
-                  <PlusIcon className="h-3.5 w-3.5 mr-0.5" />
+                <div className="flex flex-col items-center justify-center -space-y-1">
+                  <PlusIcon className="h-3.5 w-3.5" />
                   <ArrowLeftIcon className="h-4 w-4" />
                 </div>
               </ColumnActionButton>
@@ -125,9 +125,9 @@ const ColumnActionRow: React.FC<ColumnActionRowProps> = ({
                 tooltipText="Add column right"
                 ariaLabel="Add column to the right"
               >
-                <div className="flex items-center">
-                  <ArrowRightIcon className="h-4 w-4 mr-0.5" />
+                <div className="flex flex-col items-center justify-center -space-y-1">
                   <PlusIcon className="h-3.5 w-3.5" />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </div>
               </ColumnActionButton>
               
@@ -139,8 +139,8 @@ const ColumnActionRow: React.FC<ColumnActionRowProps> = ({
                 colorClass="red"
               >
                 <div className="flex flex-col items-center justify-center -space-y-1">
-                  <ArrowDownIcon className="h-3 w-3" />
                   <TrashIcon className="h-4 w-4" />
+                  <ArrowDownIcon className="h-3 w-3" />
                 </div>
               </ColumnActionButton>
             </div>

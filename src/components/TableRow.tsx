@@ -16,6 +16,10 @@ import ActionCell from './ActionCell';
  * @property {Function} onSetEditingCell - Function to set which cell is being edited
  * @property {Function} onClearEditingCell - Function to clear the editing cell state
  * @property {string|null} isEditing - Column ID if any cell in this row is being edited, null otherwise
+ * @property {Function} onStartSelection - Function to start cell selection
+ * @property {Function} onUpdateSelection - Function to update selection during drag
+ * @property {Function} isCellInSelection - Function to check if a cell is in the selection
+ * @property {boolean} isSelecting - Whether the user is currently selecting cells
  */
 interface TableRowProps {
   task: Task;
@@ -29,6 +33,10 @@ interface TableRowProps {
   onSetEditingCell?: (taskId: string, columnId: string) => void;
   onClearEditingCell?: () => void;
   isEditing?: string | null;
+  onStartSelection?: (taskId: string, columnId: string) => void;
+  onUpdateSelection?: (taskId: string, columnId: string) => void;
+  isCellInSelection?: (taskId: string, columnId: string) => boolean;
+  isSelecting?: boolean;
 }
 
 /**
@@ -128,6 +136,7 @@ const CustomStatusDropdown: React.FC<{
  * - Styled consistently with the table design
  * - Uses blue hover states for better visual feedback
  * - Supports Excel/CSV data pasting at the cell level
+ * - Supports cell selection for copy operations
  * 
  * @param {TableRowProps} props - Component props
  * @returns {JSX.Element} Rendered component
@@ -143,7 +152,11 @@ const TableRow: React.FC<TableRowProps> = ({
   isLastRow = false,
   onSetEditingCell,
   onClearEditingCell,
-  isEditing = null
+  isEditing = null,
+  onStartSelection,
+  onUpdateSelection,
+  isCellInSelection,
+  isSelecting = false
 }) => {
   // State for tracking which cell is being hovered
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
@@ -185,11 +198,35 @@ const TableRow: React.FC<TableRowProps> = ({
   };
 
   /**
+   * Handles mouse down event to start cell selection
+   * @param e - The mouse event
+   * @param columnId - The column ID where selection starts
+   */
+  const handleMouseDown = (e: React.MouseEvent, columnId: string) => {
+    // If middle or right button, or if modifier key is pressed, don't start selection
+    if (e.button !== 0 || e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return;
+    
+    // Don't start selection if we're in edit mode
+    if (isEditing) return;
+    
+    // Start selection if it's a left click on a non-editing cell
+    if (onStartSelection) {
+      onStartSelection(task.id, columnId);
+      e.preventDefault(); // Prevent text selection
+    }
+  };
+
+  /**
    * Handles mouse enter event for a cell
    * @param columnId - The identifier of the column being hovered
    */
   const handleMouseEnter = (columnId: string) => {
     setHoveredCell(columnId);
+    
+    // Update selection if we're in selection mode
+    if (isSelecting && onUpdateSelection) {
+      onUpdateSelection(task.id, columnId);
+    }
   };
 
   /**
@@ -197,6 +234,15 @@ const TableRow: React.FC<TableRowProps> = ({
    */
   const handleMouseLeave = () => {
     setHoveredCell(null);
+  };
+
+  /**
+   * Checks if a cell is currently selected
+   * @param columnId - The column ID to check
+   * @returns True if the cell is in the current selection
+   */
+  const isInSelection = (columnId: string): boolean => {
+    return isCellInSelection ? isCellInSelection(task.id, columnId) : false;
   };
 
   /**
@@ -338,6 +384,7 @@ const TableRow: React.FC<TableRowProps> = ({
       {columns.map(column => {
         const isSelectColumn = column.type === 'select';
         const isHovered = hoveredCell === column.id;
+        const isSelected = isInSelection(column.id);
         
         return (
           <div 
@@ -350,8 +397,11 @@ const TableRow: React.FC<TableRowProps> = ({
               </div>
             ) : (
               <div 
-                className={`h-full flex items-center p-4 cursor-pointer transition-all duration-300 ${isHovered ? 'bg-blue-100' : ''}`}
+                className={`h-full flex items-center p-4 cursor-pointer transition-all duration-300 
+                  ${isHovered && !isSelected ? 'bg-blue-100' : ''} 
+                  ${isSelected ? 'bg-blue-200 ring-1 ring-blue-400' : ''}`}
                 onClick={() => handleCellClick(column.id)}
+                onMouseDown={(e) => handleMouseDown(e, column.id)}
                 onMouseEnter={() => handleMouseEnter(column.id)}
                 onMouseLeave={handleMouseLeave}
               >

@@ -28,7 +28,7 @@ import ColumnActionRow from './ColumnActionRow';
 import useTableResize from '../hooks/useTableResize';
 
 // Import types
-import { Column, Task } from '../types/dataTypes';
+import { Column, Task, CellCoordinate, SelectionRange, CellIdentifier } from '../types/dataTypes';
 
 /**
  * Initial task data with predefined tasks for demonstration
@@ -83,6 +83,28 @@ const PasteNotification: React.FC<{ show: boolean; message: string }> = ({ show,
 };
 
 /**
+ * Notification component for copy operations
+ * - Shows a temporary success message when copy operation completes
+ * 
+ * @param props - Component props
+ * @returns {JSX.Element} Rendered component
+ */
+const CopyNotification: React.FC<{ show: boolean; message: string }> = ({ show, message }) => {
+  if (!show) return null;
+  
+  return (
+    <div className="absolute top-14 right-0 m-4 p-3 bg-blue-100 border border-blue-200 text-blue-800 rounded shadow-md transition-opacity duration-300 opacity-90 z-50">
+      <div className="flex items-center">
+        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+        </svg>
+        <span>{message}</span>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Shortcuts Help Dialog component
  * - Shows available keyboard shortcuts to the user
  * 
@@ -96,9 +118,11 @@ const ShortcutsDialog: React.FC<{
   if (!isOpen) return null;
   
   const shortcuts = [
-    { key: 'Ctrl+V', description: 'Paste data from clipboard' },
+    { key: 'Ctrl+V / Cmd+V', description: 'Paste data from clipboard' },
+    { key: 'Ctrl+C / Cmd+C', description: 'Copy selected cells to clipboard' },
+    { key: 'Drag mouse', description: 'Select range of cells' },
     { key: 'Enter', description: 'Confirm edit and exit cell edit mode' },
-    { key: 'Escape', description: 'Cancel edit and exit cell edit mode' },
+    { key: 'Escape', description: 'Cancel edit or clear selection' },
     { key: 'Tab', description: 'Move to next cell' },
     { key: 'Shift+Tab', description: 'Move to previous cell' },
     { key: '?', description: 'Show this shortcuts dialog' }
@@ -149,7 +173,7 @@ const DataTable: React.FC = () => {
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   
   // State for tracking the cell being edited 
-  const [editingCell, setEditingCell] = useState<{taskId: string, columnId: string} | null>(null);
+  const [editingCell, setEditingCell] = useState<CellIdentifier | null>(null);
   
   // State for paste notification
   const [showPasteNotification, setShowPasteNotification] = useState(false);
@@ -157,6 +181,12 @@ const DataTable: React.FC = () => {
   
   // State for shortcuts dialog
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
+
+  // State for cell selection
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionRange, setSelectionRange] = useState<SelectionRange | null>(null);
+  const [copyNotificationMessage, setCopyNotificationMessage] = useState('');
+  const [showCopyNotification, setShowCopyNotification] = useState(false);
   
   /**
    * State for columns with fixed width settings
@@ -376,6 +406,192 @@ const DataTable: React.FC = () => {
   };
 
   /**
+   * Converts task ID and column ID to row and column indices
+   * @param taskId - The task ID to convert
+   * @param columnId - The column ID to convert
+   * @returns The corresponding cell coordinate
+   */
+  const getCellCoordinate = (taskId: string, columnId: string): CellCoordinate | null => {
+    const rowIndex = tasks.findIndex(task => task.id === taskId);
+    const columnIndex = columns.findIndex(column => column.id === columnId);
+    
+    if (rowIndex === -1 || columnIndex === -1) return null;
+    
+    return { rowIndex, columnIndex };
+  };
+
+  /**
+   * Converts row and column indices to task ID and column ID
+   * @param rowIndex - The row index to convert
+   * @param columnIndex - The column index to convert
+   * @returns The corresponding cell identifier
+   */
+  const getCellIdentifier = (rowIndex: number, columnIndex: number): CellIdentifier | null => {
+    if (rowIndex < 0 || rowIndex >= tasks.length || 
+        columnIndex < 0 || columnIndex >= columns.length) {
+      return null;
+    }
+    
+    return {
+      taskId: tasks[rowIndex].id,
+      columnId: columns[columnIndex].id
+    };
+  };
+
+  /**
+   * Starts cell selection process
+   * @param taskId - The task ID where selection starts
+   * @param columnId - The column ID where selection starts
+   */
+  const handleStartSelection = (taskId: string, columnId: string) => {
+    const coordinate = getCellCoordinate(taskId, columnId);
+    if (!coordinate) return;
+
+    // Don't start selection on the select column
+    if (columnId === 'select') return;
+    
+    setSelectionRange({
+      start: coordinate,
+      end: coordinate
+    });
+    setIsSelecting(true);
+  };
+
+  /**
+   * Updates the selection range as the user drags
+   * @param taskId - The current task ID under the mouse
+   * @param columnId - The current column ID under the mouse
+   */
+  const handleUpdateSelection = (taskId: string, columnId: string) => {
+    if (!isSelecting || !selectionRange) return;
+    
+    const coordinate = getCellCoordinate(taskId, columnId);
+    if (!coordinate) return;
+
+    // Don't include the select column in the selection
+    if (columnId === 'select') return;
+    
+    setSelectionRange({
+      ...selectionRange,
+      end: coordinate
+    });
+  };
+
+  /**
+   * Ends the selection process
+   */
+  const handleEndSelection = () => {
+    setIsSelecting(false);
+  };
+
+  /**
+   * Clears the current selection
+   */
+  const clearSelection = () => {
+    setSelectionRange(null);
+  };
+
+  /**
+   * Checks if a cell is within the current selection range
+   * @param taskId - The task ID to check
+   * @param columnId - The column ID to check
+   * @returns True if the cell is selected
+   */
+  const isCellSelected = (taskId: string, columnId: string): boolean => {
+    if (!selectionRange) return false;
+    
+    const coordinate = getCellCoordinate(taskId, columnId);
+    if (!coordinate) return false;
+    
+    const { start, end } = selectionRange;
+    
+    // Calculate the actual range boundaries
+    const minRow = Math.min(start.rowIndex, end.rowIndex);
+    const maxRow = Math.max(start.rowIndex, end.rowIndex);
+    const minCol = Math.min(start.columnIndex, end.columnIndex);
+    const maxCol = Math.max(start.columnIndex, end.columnIndex);
+    
+    // Check if the cell is within the range
+    return (
+      coordinate.rowIndex >= minRow && 
+      coordinate.rowIndex <= maxRow && 
+      coordinate.columnIndex >= minCol && 
+      coordinate.columnIndex <= maxCol
+    );
+  };
+
+  /**
+   * Extracts data from the current selection range
+   * @returns 2D array of selected cell values
+   */
+  const extractSelectedData = (): string[][] => {
+    if (!selectionRange) return [];
+    
+    const { start, end } = selectionRange;
+    
+    // Calculate the actual range boundaries
+    const minRow = Math.min(start.rowIndex, end.rowIndex);
+    const maxRow = Math.max(start.rowIndex, end.rowIndex);
+    const minCol = Math.min(start.columnIndex, end.columnIndex);
+    const maxCol = Math.max(start.columnIndex, end.columnIndex);
+    
+    // Extract data from the range
+    const data: string[][] = [];
+    
+    for (let i = minRow; i <= maxRow; i++) {
+      const row: string[] = [];
+      for (let j = minCol; j <= maxCol; j++) {
+        // Skip select column
+        if (columns[j].id === 'select') continue;
+        
+        const cellValue = tasks[i][columns[j].id] || '';
+        row.push(cellValue);
+      }
+      data.push(row);
+    }
+    
+    return data;
+  };
+
+  /**
+   * Shows a notification after copy operation
+   * @param rowCount - Number of rows copied
+   * @param colCount - Number of columns copied
+   */
+  const showCopySuccessNotification = (rowCount: number, colCount: number) => {
+    setCopyNotificationMessage(`Successfully copied ${rowCount} × ${colCount} cells to clipboard`);
+    setShowCopyNotification(true);
+    
+    // Hide the notification after 3 seconds
+    setTimeout(() => {
+      setShowCopyNotification(false);
+    }, 3000);
+  };
+
+  /**
+   * Handles copying selected data to the clipboard
+   */
+  const handleCopy = () => {
+    if (!selectionRange) return;
+    
+    // Extract data from selected range
+    const data = extractSelectedData();
+    if (data.length === 0 || data[0].length === 0) return;
+    
+    // Convert to TSV format for Excel compatibility
+    const tsvData = data.map(row => row.join('\t')).join('\n');
+    
+    // Write to clipboard using Clipboard API
+    navigator.clipboard.writeText(tsvData)
+      .then(() => {
+        showCopySuccessNotification(data.length, data[0].length);
+      })
+      .catch(err => {
+        console.error('Failed to copy: ', err);
+      });
+  };
+
+  /**
    * Parses clipboard data into a structured format
    * @param clipboardText - Raw text from clipboard
    * @returns 2D array of values
@@ -522,6 +738,18 @@ const DataTable: React.FC = () => {
         e.preventDefault();
       }
       
+      // Copy selected data with Ctrl+C or Cmd+C
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInputElement) {
+        e.preventDefault();
+        handleCopy();
+      }
+      
+      // Clear selection with Escape
+      if (e.key === 'Escape' && !isInputElement && !editingCell) {
+        e.preventDefault();
+        clearSelection();
+      }
+      
       // Add support for keyboard navigation between cells
       if (editingCell && (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey))) {
         const { taskId, columnId } = editingCell;
@@ -577,8 +805,21 @@ const DataTable: React.FC = () => {
     };
     
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [editingCell, tasks, columns]);
+    
+    // Add mouse up listener to end selection
+    const handleGlobalMouseUp = () => {
+      if (isSelecting) {
+        handleEndSelection();
+      }
+    };
+    
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [editingCell, tasks, columns, isSelecting, selectionRange]);
 
   /**
    * Render method for the DataTable component
@@ -598,6 +839,12 @@ const DataTable: React.FC = () => {
           message={pasteNotificationMessage} 
         />
         
+        {/* Copy notification component */}
+        <CopyNotification 
+          show={showCopyNotification} 
+          message={copyNotificationMessage} 
+        />
+        
         {/* Shortcuts dialog */}
         <ShortcutsDialog 
           isOpen={showShortcutsDialog} 
@@ -614,6 +861,32 @@ const DataTable: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </button>
+        
+        {/* Selection controls */}
+        {selectionRange && (
+          <div className="absolute top-2 left-2 p-2 bg-white border border-gray-200 rounded shadow-sm z-10 flex items-center space-x-2">
+            <button 
+              className="p-1 text-gray-700 hover:bg-blue-50 rounded flex items-center"
+              onClick={handleCopy}
+              title="Copy selected cells"
+            >
+              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+              </svg>
+              Copy
+            </button>
+            <button 
+              className="p-1 text-gray-700 hover:bg-gray-100 rounded flex items-center"
+              onClick={clearSelection}
+              title="Clear selection"
+            >
+              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Clear
+            </button>
+          </div>
+        )}
         
         {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
         <div 
@@ -667,6 +940,10 @@ const DataTable: React.FC = () => {
                 onSetEditingCell={handleSetEditingCell}
                 onClearEditingCell={handleClearEditingCell}
                 isEditing={editingCell?.taskId === task.id ? editingCell.columnId : null}
+                onStartSelection={handleStartSelection}
+                onUpdateSelection={handleUpdateSelection}
+                isCellInSelection={isCellSelected}
+                isSelecting={isSelecting}
               />
             ))}
             

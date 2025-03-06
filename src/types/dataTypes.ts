@@ -78,6 +78,10 @@ export interface SelectionRange {
  * @property {string} [fontStyle] - Font style (normal, italic, etc.)
  * @property {string} [borderColor] - Cell border color
  * @property {'left' | 'center' | 'right'} [alignment] - Text alignment
+ * @property {string} [fontSize] - Font size with unit
+ * @property {boolean} [isHeader] - Whether the cell is a header
+ * @property {string} [fontFamily] - Font family
+ * @property {string} [textDecoration] - Text decoration (underline, etc.)
  */
 export interface CellFormatting {
   backgroundColor?: string;
@@ -86,6 +90,10 @@ export interface CellFormatting {
   fontStyle?: string;
   borderColor?: string;
   alignment?: 'left' | 'center' | 'right';
+  fontSize?: string;
+  isHeader?: boolean;
+  fontFamily?: string;
+  textDecoration?: string;
 }
 
 /**
@@ -136,5 +144,35 @@ export enum ActionType {
   ADD_COLUMN = 'add_column',
   EDIT_CELL = 'edit_cell',
   MULTI_CELL_EDIT = 'multi_cell_edit',
-  INITIAL = 'initial_state'
+  INITIAL = 'initial_state',
+  FORMAT_CELLS = 'format_cells'
+}
+
+/**
+ * Format information for a paste operation
+ * @interface PasteFormatting
+ * @property {boolean} hasFormatting - Whether the pasted data has formatting
+ * @property {FormattedCellData[][]} formattedData - 2D array of formatted data if available
+ * @property {string[][]} rawData - 2D array of raw text data
+ * @property {string} sourceFormat - Format of the source data (e.g., 'html', 'text')
+ * @property {string} htmlContent - Original HTML content if available
+ */
+export interface PasteFormatting {
+  hasFormatting: boolean;
+  formattedData?: FormattedCellData[][];
+  rawData: string[][];
+  sourceFormat: 'html' | 'text';
+  htmlContent?: string;
+}
+
+/**
+ * Paste mode for different paste operations
+ */
+export enum PasteMode {
+  REPLACE = 'replace',      // Replace existing content
+  INSERT_ROWS = 'insert_rows', // Insert new rows
+  INSERT_COLUMNS = 'insert_columns', // Insert new columns
+  APPEND = 'append',        // Append to existing content
+  VALUES_ONLY = 'values_only', // Paste only values (no formatting)
+  FORMATS_ONLY = 'formats_only' // Paste only formatting
 }

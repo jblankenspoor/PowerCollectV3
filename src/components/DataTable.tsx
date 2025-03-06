@@ -265,6 +265,9 @@ const DataTable: React.FC = () => {
   // Add a ref to track when an action is being recorded
   const isRecordingActionRef = useRef(false);
   
+  // Track the timeouts used for batch operations
+  const batchTimeoutsRef = useRef<number[]>([]);
+
   /**
    * State for columns with fixed width settings
    * - Each column has a fixed width to ensure consistency across the table
@@ -291,41 +294,58 @@ const DataTable: React.FC = () => {
   );
 
   /**
-   * Records an action to the history stack
+   * Records an action to the history stack with unique timestamp
    * @param description - Description of the action
    * @param type - Type of action performed
+   * @param customState - Optional custom state to save (defaults to current state)
    */
-  const recordAction = (description: string, type: ActionType) => {
+  const recordAction = (description: string, type: ActionType, customState?: { tasks?: Task[], columns?: Column[] }) => {
     // Skip recording if we're in the middle of an undo/redo operation
     if (isUndoRedoOperationRef.current) return;
-    
-    // Skip if we're already recording an action to prevent bundling
-    if (isRecordingActionRef.current) return;
     
     // Set flag to prevent nested recording
     isRecordingActionRef.current = true;
     
-    // Create history entry with current state
+    // Create unique timestamp with small offset to ensure actions are distinct
+    const timestamp = Date.now() + Math.random();
+    
+    // Create history entry with provided or current state
     const newEntry: HistoryState = {
-      tasks: JSON.parse(JSON.stringify(tasks)), // Deep copy
-      columns: JSON.parse(JSON.stringify(columns)), // Deep copy
-      timestamp: Date.now(),
+      tasks: customState?.tasks ? JSON.parse(JSON.stringify(customState.tasks)) : JSON.parse(JSON.stringify(tasks)),
+      columns: customState?.columns ? JSON.parse(JSON.stringify(customState.columns)) : JSON.parse(JSON.stringify(columns)),
+      timestamp,
       description
     };
     
-    // Truncate future history if we're not at the latest state
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(newEntry);
-    
-    // Update history state
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-    
-    // Reset the flag
-    setTimeout(() => {
+    // Use setTimeout to ensure each action gets a unique entry
+    // This ensures actions are recorded individually even if they happen in quick succession
+    const timeoutId = window.setTimeout(() => {
+      // Truncate future history if we're not at the latest state
+      setHistory(prev => {
+        const newHistory = prev.slice(0, historyIndex + 1);
+        newHistory.push(newEntry);
+        return newHistory;
+      });
+      
+      setHistoryIndex(prev => prev + 1);
+      
+      // Reset the flag
       isRecordingActionRef.current = false;
+      
+      // Remove this timeout from the tracking array
+      batchTimeoutsRef.current = batchTimeoutsRef.current.filter(id => id !== timeoutId);
     }, 0);
+    
+    // Track the timeout ID
+    batchTimeoutsRef.current.push(timeoutId);
   };
+
+  // Clear any pending timeouts when unmounting
+  useEffect(() => {
+    return () => {
+      batchTimeoutsRef.current.forEach(id => window.clearTimeout(id));
+    };
+  }, []);
 
   /**
    * Shows a notification after undo/redo operation
@@ -339,6 +359,24 @@ const DataTable: React.FC = () => {
     setTimeout(() => {
       setShowUndoNotification(false);
     }, 3000);
+  };
+
+  /**
+   * Gets tooltip text for undo button
+   */
+  const getUndoTooltip = () => {
+    if (historyIndex <= 0) return "Nothing to undo";
+    const prevAction = history[historyIndex];
+    return `Undo: ${prevAction.description}`;
+  };
+
+  /**
+   * Gets tooltip text for redo button
+   */
+  const getRedoTooltip = () => {
+    if (historyIndex >= history.length - 1) return "Nothing to redo";
+    const nextAction = history[historyIndex + 1];
+    return `Redo: ${nextAction.description}`;
   };
 
   /**
@@ -390,24 +428,6 @@ const DataTable: React.FC = () => {
   };
 
   /**
-   * Gets tooltip text for undo button
-   */
-  const getUndoTooltip = () => {
-    if (historyIndex <= 0) return "Nothing to undo";
-    const prevAction = history[historyIndex];
-    return `Undo: ${prevAction.description}`;
-  };
-
-  /**
-   * Gets tooltip text for redo button
-   */
-  const getRedoTooltip = () => {
-    if (historyIndex >= history.length - 1) return "Nothing to redo";
-    const nextAction = history[historyIndex + 1];
-    return `Redo: ${nextAction.description}`;
-  };
-
-  /**
    * Updates a task's value for a specific column
    * @param taskId - The unique identifier of the task
    * @param columnId - The identifier of the column being updated
@@ -432,15 +452,20 @@ const DataTable: React.FC = () => {
     }));
     
     // Record action in history
-    if (recordHistory && !isUndoRedoOperationRef.current) {
+    if (recordHistory && !isUndoRedoOperationRef.current && oldTask) {
       // Get column title for better description
       const column = columns.find(col => col.id === columnId);
       const columnTitle = column ? column.title : columnId;
       
       // Get task name for better description
       const taskName = oldTask ? oldTask.name : taskId;
+
+      // Create updated task for history
+      const updatedTask = { ...oldTask, [columnId]: value };
       
-      recordAction(`Edit ${columnTitle} of "${taskName}"`, ActionType.EDIT_CELL);
+      recordAction(`Edit ${columnTitle} of "${taskName}"`, ActionType.EDIT_CELL, { 
+        tasks: [...tasks.filter(t => t.id !== taskId), updatedTask]
+      });
     }
   };
 
@@ -483,18 +508,22 @@ const DataTable: React.FC = () => {
   const handleAddTask = () => {
     const newTask: Task = {
       id: uuidv4(),
-      name: 'New Task',
+      name: 'New Row',
       status: 'To do',
       priority: 'Medium',
       startDate: 'Not set',
       deadline: 'Not set',
     };
     
+    // Save current state before modification
+    const oldTasks = [...tasks];
+    
+    // Update state
     setTasks(prev => [...prev, newTask]);
     
     // Record action in history
     if (!isUndoRedoOperationRef.current) {
-      recordAction(`Add new task`, ActionType.ADD_ROW);
+      recordAction(`Add new row`, ActionType.ADD_ROW, { tasks: oldTasks });
     }
     
     return newTask;
@@ -509,6 +538,11 @@ const DataTable: React.FC = () => {
     const taskToDelete = tasks.find(task => task.id === taskId);
     const taskName = taskToDelete ? taskToDelete.name : taskId;
     
+    // Save current state before modification
+    const oldTasks = [...tasks];
+    const oldSelectedTasks = new Set(selectedTasks);
+    
+    // Update state
     setTasks(prev => prev.filter(task => task.id !== taskId));
     setSelectedTasks(prev => {
       const newSet = new Set(prev);
@@ -518,7 +552,7 @@ const DataTable: React.FC = () => {
     
     // Record action in history
     if (!isUndoRedoOperationRef.current) {
-      recordAction(`Delete task "${taskName}"`, ActionType.DELETE_ROW);
+      recordAction(`Delete row "${taskName}"`, ActionType.DELETE_ROW, { tasks: oldTasks });
     }
   };
 
@@ -544,6 +578,10 @@ const DataTable: React.FC = () => {
    * Adds a new column to the table at the right end
    */
   const handleAddColumn = () => {
+    // Save current state before modification
+    const oldColumns = [...columns];
+    const oldTasks = [...tasks];
+    
     const newColumn = createNewColumn(`COLUMN ${columns.length}`);
     
     // Add the new column to the columns array
@@ -557,7 +595,7 @@ const DataTable: React.FC = () => {
     
     // Record action in history
     if (!isUndoRedoOperationRef.current) {
-      recordAction(`Add column "${newColumn.title}"`, ActionType.ADD_COLUMN);
+      recordAction(`Add column "${newColumn.title}"`, ActionType.ADD_COLUMN, { columns: oldColumns, tasks: oldTasks });
     }
   };
 
@@ -566,6 +604,10 @@ const DataTable: React.FC = () => {
    * @param columnIndex - Index of the column to add to the left of
    */
   const handleAddColumnLeft = (columnIndex: number) => {
+    // Save current state before modification
+    const oldColumns = [...columns];
+    const oldTasks = [...tasks];
+    
     const newColumn = createNewColumn(`COLUMN L${columnIndex}`);
     
     // Get the reference column for better description
@@ -587,7 +629,7 @@ const DataTable: React.FC = () => {
     
     // Record action in history
     if (!isUndoRedoOperationRef.current) {
-      recordAction(`Add column "${newColumn.title}" to the left of "${referenceColumnTitle}"`, ActionType.ADD_COLUMN);
+      recordAction(`Add column "${newColumn.title}" to the left of "${referenceColumnTitle}"`, ActionType.ADD_COLUMN, { columns: oldColumns, tasks: oldTasks });
     }
   };
 
@@ -596,6 +638,10 @@ const DataTable: React.FC = () => {
    * @param columnIndex - Index of the column to add to the right of
    */
   const handleAddColumnRight = (columnIndex: number) => {
+    // Save current state before modification
+    const oldColumns = [...columns];
+    const oldTasks = [...tasks];
+    
     const newColumn = createNewColumn(`COLUMN R${columnIndex}`);
     
     // Get the reference column for better description
@@ -617,7 +663,7 @@ const DataTable: React.FC = () => {
     
     // Record action in history
     if (!isUndoRedoOperationRef.current) {
-      recordAction(`Add column "${newColumn.title}" to the right of "${referenceColumnTitle}"`, ActionType.ADD_COLUMN);
+      recordAction(`Add column "${newColumn.title}" to the right of "${referenceColumnTitle}"`, ActionType.ADD_COLUMN, { columns: oldColumns, tasks: oldTasks });
     }
   };
 
@@ -629,6 +675,10 @@ const DataTable: React.FC = () => {
   const handleDeleteColumn = (columnId: string, columnIndex: number) => {
     // Don't allow deleting the select column (index 0)
     if (columnIndex === 0) return;
+    
+    // Save current state before modification
+    const oldColumns = [...columns];
+    const oldTasks = [...tasks];
     
     // Find column before deletion for history recording
     const columnToDelete = columns.find(col => col.id === columnId);
@@ -646,7 +696,7 @@ const DataTable: React.FC = () => {
     
     // Record action in history
     if (!isUndoRedoOperationRef.current) {
-      recordAction(`Delete column "${columnTitle}"`, ActionType.DELETE_COLUMN);
+      recordAction(`Delete column "${columnTitle}"`, ActionType.DELETE_COLUMN, { columns: oldColumns, tasks: oldTasks });
     }
   };
 
@@ -922,9 +972,9 @@ const DataTable: React.FC = () => {
     // Skip if invalid starting position
     if (startRowIndex === -1 || startColumnIndex === -1) return;
     
-    // Make a copy of the current state for history comparison
-    const oldTasks = JSON.parse(JSON.stringify(tasks));
-    const oldColumns = JSON.parse(JSON.stringify(columns));
+    // Save current state before modification
+    const originalTasks = JSON.parse(JSON.stringify(tasks));
+    const originalColumns = JSON.parse(JSON.stringify(columns));
     
     // Calculate required dimensions
     const requiredRows = startRowIndex + data.length;
@@ -942,7 +992,7 @@ const DataTable: React.FC = () => {
     while (updatedTasks.length < requiredRows) {
       const newTask: Task = {
         id: uuidv4(),
-        name: 'New Task',
+        name: 'New Row',
         status: 'To do',
         priority: 'Medium',
         startDate: 'Not set',
@@ -971,7 +1021,10 @@ const DataTable: React.FC = () => {
       
       // Record column addition as a separate action
       if (!isUndoRedoOperationRef.current) {
-        recordAction(`Add ${addedColumns} new columns for pasted data`, ActionType.ADD_COLUMN);
+        recordAction(`Add ${addedColumns} new column${addedColumns > 1 ? 's' : ''} for pasted data`, ActionType.ADD_COLUMN, { 
+          columns: originalColumns,
+          tasks: originalTasks 
+        });
       }
     }
     
@@ -981,7 +1034,10 @@ const DataTable: React.FC = () => {
       
       // Record row addition as a separate action
       if (!isUndoRedoOperationRef.current) {
-        recordAction(`Add ${addedRows} new rows for pasted data`, ActionType.ADD_ROW);
+        recordAction(`Add ${addedRows} new row${addedRows > 1 ? 's' : ''} for pasted data`, ActionType.ADD_ROW, {
+          columns: updatedColumns,
+          tasks: originalTasks
+        });
       }
     }
     
@@ -1013,7 +1069,10 @@ const DataTable: React.FC = () => {
     
     // Record paste action separately
     if (!isUndoRedoOperationRef.current) {
-      recordAction(`Paste ${rowCount}×${colCount} data values`, ActionType.PASTE);
+      recordAction(`Paste ${rowCount}×${colCount} data values`, ActionType.PASTE, {
+        columns: updatedColumns,
+        tasks: addedRows > 0 ? updatedTasks : originalTasks
+      });
     }
     
     // Clear editing cell after paste

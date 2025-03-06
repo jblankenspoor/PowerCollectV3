@@ -38,8 +38,7 @@ import {
   ActionType,
   CellFormatting,
   FormattedCellData,
-  PasteFormatting,
-  PasteMode
+  PasteFormatting
 } from '../types/dataTypes';
 
 // Add this interface at the top of the file, before the component declarations
@@ -382,157 +381,6 @@ const extractFormatting = (element: HTMLElement): CellFormatting => {
 };
 
 /**
- * PasteOption interface defines a single paste option
- * @interface PasteOption
- * @property {string} id - Unique identifier for the option
- * @property {string} label - Display label
- * @property {string} description - Longer description of the behavior
- * @property {PasteMode} mode - The paste mode this option represents
- * @property {React.ReactNode} icon - Icon to display with the option
- */
-interface PasteOption {
-  id: string;
-  label: string;
-  description: string;
-  mode: PasteMode;
-  icon: React.ReactNode;
-}
-
-/**
- * PasteOptionsMenu component
- * - Context menu for paste options when pasting formatted data
- * 
- * @param props - Component props
- * @returns {JSX.Element} Rendered component
- */
-const PasteOptionsMenu: React.FC<{
-  isOpen: boolean;
-  position: { x: number; y: number };
-  pasteData: PasteFormatting;
-  targetCell: CellIdentifier;
-  onClose: () => void;
-  onPaste: (data: PasteFormatting, taskId: string, columnId: string, mode: PasteMode) => void;
-}> = ({ isOpen, position, pasteData, targetCell, onClose, onPaste }) => {
-  // Early return if menu is closed
-  if (!isOpen) return null;
-  
-  // Define paste options
-  const pasteOptions: PasteOption[] = [
-    {
-      id: 'replace',
-      label: 'Replace',
-      description: 'Replace existing content with pasted data',
-      mode: PasteMode.REPLACE,
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 11h16M4 15h16M4 19h16" />
-        </svg>
-      )
-    },
-    {
-      id: 'insert_rows',
-      label: 'Insert as rows',
-      description: 'Insert pasted data as new rows',
-      mode: PasteMode.INSERT_ROWS,
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-      )
-    },
-    {
-      id: 'insert_columns',
-      label: 'Insert as columns',
-      description: 'Insert pasted data as new columns',
-      mode: PasteMode.INSERT_COLUMNS,
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      )
-    },
-    {
-      id: 'values_only',
-      label: 'Values only',
-      description: 'Paste only values without formatting',
-      mode: PasteMode.VALUES_ONLY,
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-        </svg>
-      )
-    },
-    {
-      id: 'formats_only',
-      label: 'Formatting only',
-      description: 'Apply only formatting without changing values',
-      mode: PasteMode.FORMATS_ONLY,
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-        </svg>
-      )
-    }
-  ];
-  
-  // Handle item click
-  const handleOptionClick = (option: PasteOption) => {
-    onPaste(pasteData, targetCell.taskId, targetCell.columnId, option.mode);
-    onClose();
-  };
-  
-  // Calculate menu position to ensure it stays within viewport
-  const menuStyle = {
-    top: `${position.y}px`,
-    left: `${position.x}px`,
-    zIndex: 1000,
-    width: '280px'
-  };
-  
-  // Handle clicking outside to close the menu
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.paste-options-menu')) {
-        onClose();
-      }
-    };
-    
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [onClose]);
-  
-  return (
-    <div 
-      className="absolute bg-white rounded-md shadow-lg border border-gray-200 paste-options-menu" 
-      style={menuStyle}
-    >
-      <div className="p-3 border-b border-gray-200 bg-gray-50 rounded-t-md">
-        <h3 className="font-medium text-gray-700">Paste Options</h3>
-        <p className="text-xs text-gray-500 mt-1">Choose how to paste the {pasteData.hasFormatting ? 'formatted ' : ''}data</p>
-      </div>
-      <div className="divide-y divide-gray-100">
-        {pasteOptions.map((option) => (
-          <div 
-            key={option.id}
-            className="p-3 hover:bg-blue-50 cursor-pointer transition-colors flex items-start"
-            onClick={() => handleOptionClick(option)}
-          >
-            <div className="text-gray-500 mr-3 mt-0.5">{option.icon}</div>
-            <div>
-              <div className="font-medium text-gray-800">{option.label}</div>
-              <div className="text-xs text-gray-500 mt-1">{option.description}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-/**
  * Main DataTable component
  * Manages the state and rendering of the interactive data table
  */
@@ -586,17 +434,6 @@ const DataTable: React.FC<{}> = () => {
   
   // State for storing cell formatting
   const [cellFormatting, setCellFormatting] = useState<Map<string, CellFormatting>>(new Map());
-  
-  // State for paste mode
-  const [pasteMode, setPasteMode] = useState<PasteMode>(PasteMode.REPLACE);
-  
-  // State for paste options menu
-  const [pasteOptionsMenu, setPasteOptionsMenu] = useState({
-    isOpen: false,
-    position: { x: 0, y: 0 },
-    pasteData: null as PasteFormatting | null,
-    targetCell: null as CellIdentifier | null
-  });
   
   // Update refs when state changes
   useEffect(() => {
@@ -1284,12 +1121,11 @@ const DataTable: React.FC<{}> = () => {
   };
 
   /**
-   * Parses clipboard data into a structured format with optional formatting
+   * Parses clipboard data into a structured format
    * @param clipboardText - Raw text from clipboard
-   * @param clipboardHtml - Optional HTML content from clipboard
    * @returns Parsed data with formatting information
    */
-  const parseClipboardData = (clipboardText: string, clipboardHtml?: string): PasteFormatting => {
+  const parseClipboardData = (clipboardText: string): PasteFormatting => {
     // Default result with text-only parsing
     const result: PasteFormatting = {
       hasFormatting: false,
@@ -1297,28 +1133,20 @@ const DataTable: React.FC<{}> = () => {
       rawData: []
     };
     
-    // Always parse the text version for fallback
-    const rows = clipboardText.split(/\r?\n/).filter(row => row.trim() !== '');
-    const delimiter = rows[0].includes('\t') ? '\t' : ',';
-    result.rawData = rows.map(row => row.split(delimiter));
-    
-    // Try to parse HTML content if available
-    if (clipboardHtml) {
-      const formattedData = parseHtmlContent(clipboardHtml);
+    try {
+      // Parse the raw text into rows and cells
+      const rows = clipboardText.trim().split(/\r?\n/);
+      const data: string[][] = [];
       
-      if (formattedData) {
-        result.hasFormatting = true;
-        result.sourceFormat = 'html';
-        result.formattedData = formattedData;
-        result.htmlContent = clipboardHtml;
-        
-        // Replace raw data with values from formatted data as a fallback
-        if (formattedData.length > 0) {
-          result.rawData = formattedData.map(row => 
-            row.map(cell => cell.value)
-          );
-        }
+      for (const row of rows) {
+        // Split by tab for Excel/TSV format
+        const cells = row.split('\t');
+        data.push(cells);
       }
+      
+      result.rawData = data;
+    } catch (error) {
+      console.error('Error parsing clipboard data:', error);
     }
     
     return result;
@@ -1360,85 +1188,23 @@ const DataTable: React.FC<{}> = () => {
     
     // Get clipboard data
     const clipboardText = event.clipboardData?.getData('text/plain') || '';
-    const clipboardHtml = event.clipboardData?.getData('text/html') || '';
     
     if (clipboardText && editingCell) {
-      // Process the clipboard data with format preservation
-      const parsedData = parseClipboardData(clipboardText, clipboardHtml || undefined);
+      // Process the clipboard data (simplified to just handle text)
+      const parsedData = parseClipboardData(clipboardText);
       
-      // Show paste options menu if we have HTML data (for formatted content)
-      if (parsedData.hasFormatting) {
-        // Get mouse position for the menu
-        const rect = (event.target as HTMLElement).getBoundingClientRect();
-        // Use fallback position since ClipboardEvent doesn't have clientX/Y
-        const position = {
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2
-        };
-        
-        // Open paste options menu
-        setPasteOptionsMenu({
-          isOpen: true,
-          position,
-          pasteData: parsedData,
-          targetCell: editingCell
-        });
-      } else {
-        // Apply text-only data
-        applyPastedData(parsedData.rawData, editingCell.taskId, editingCell.columnId);
-      }
+      // Apply data directly without showing options
+      applyPastedData(parsedData.rawData, editingCell.taskId, editingCell.columnId);
+      
+      // Show notification
+      setPasteNotificationMessage("Data pasted successfully");
+      setShowPasteNotification(true);
+      
+      // Hide notification after 3 seconds
+      setTimeout(() => {
+        setShowPasteNotification(false);
+      }, 3000);
     }
-  };
-
-  /**
-   * Closes the paste options menu
-   */
-  const closePasteOptionsMenu = () => {
-    setPasteOptionsMenu(prev => ({ ...prev, isOpen: false }));
-  };
-
-  /**
-   * Apply pasted data based on selected paste mode
-   * @param pasteData - The data to paste
-   * @param taskId - Target task ID
-   * @param columnId - Target column ID
-   * @param mode - Paste mode to apply
-   */
-  const handlePasteWithMode = (pasteData: PasteFormatting, taskId: string, columnId: string, mode: PasteMode) => {
-    switch (mode) {
-      case PasteMode.REPLACE:
-        // Replace with both data and formatting
-        applyPastedData(pasteData.rawData, taskId, columnId);
-        if (pasteData.hasFormatting && pasteData.formattedData) {
-          applyFormatting(pasteData.formattedData, taskId, columnId);
-        }
-        break;
-      case PasteMode.INSERT_ROWS:
-        // Insert as new rows
-        insertRowsFromPasteData(pasteData, taskId, columnId);
-        break;
-      case PasteMode.INSERT_COLUMNS:
-        // Insert as new columns
-        insertColumnsFromPasteData(pasteData, taskId, columnId);
-        break;
-      case PasteMode.VALUES_ONLY:
-        // Paste only values without formatting
-        applyPastedData(pasteData.rawData, taskId, columnId);
-        break;
-      case PasteMode.FORMATS_ONLY:
-        // Apply only formatting without changing values
-        if (pasteData.hasFormatting && pasteData.formattedData) {
-          applyFormatting(pasteData.formattedData, taskId, columnId);
-        }
-        break;
-      default:
-        // Default to simple replace
-        applyPastedData(pasteData.rawData, taskId, columnId);
-        break;
-    }
-    
-    // Close the menu after applying the paste
-    closePasteOptionsMenu();
   };
 
   /**
@@ -1486,224 +1252,6 @@ const DataTable: React.FC<{}> = () => {
     );
     
     showUndoRedoNotification("Data pasted successfully", ActionType.PASTE);
-  };
-
-  /**
-   * Apply formatting to cells
-   * @param formattedData - 2D array of formatted cell data
-   * @param taskId - Target task ID
-   * @param columnId - Target column ID
-   */
-  const applyFormatting = (formattedData: FormattedCellData[][], taskId: string, columnId: string) => {
-    if (!formattedData || formattedData.length === 0) return;
-    
-    // Get the starting cell coordinates
-    const startCell = getCellCoordinate(taskId, columnId);
-    if (!startCell) return;
-    
-    const { rowIndex, columnIndex } = startCell;
-    const newCellFormatting = new Map(cellFormatting);
-    const cellFormattingCopy = new Map(cellFormatting);
-    
-    // Apply formatting to cells
-    for (let i = 0; i < formattedData.length; i++) {
-      const currentRowIndex = rowIndex + i;
-      if (currentRowIndex >= tasks.length) continue;
-      
-      for (let j = 0; j < formattedData[i].length; j++) {
-        const currentColumnIndex = columnIndex + j;
-        if (currentColumnIndex >= columns.length) continue;
-        
-        const currentTaskId = tasks[currentRowIndex].id;
-        const currentColumnId = columns[currentColumnIndex].id;
-        const cellKey = `${currentTaskId}-${currentColumnId}`;
-        
-        // Update the cell formatting
-        if (formattedData[i][j].formatting) {
-          newCellFormatting.set(cellKey, formattedData[i][j].formatting);
-        }
-      }
-    }
-    
-    // Update state and record history
-    setCellFormatting(newCellFormatting);
-    recordAction(
-      `Applied formatting at ${columns[columnIndex].title}:${taskId}`,
-      ActionType.FORMAT_CELLS,
-      { cellFormatting: cellFormattingCopy },
-      { cellFormatting: newCellFormatting }
-    );
-  };
-
-  /**
-   * Insert rows from paste data
-   * @param pasteData - The data to paste
-   * @param taskId - Target task ID
-   * @param columnId - Target column ID
-   */
-  const insertRowsFromPasteData = (pasteData: PasteFormatting, taskId: string, columnId: string) => {
-    if (!pasteData.rawData || pasteData.rawData.length === 0) return;
-    
-    // Get the starting cell coordinates
-    const startCell = getCellCoordinate(taskId, columnId);
-    if (!startCell) return;
-    
-    const { rowIndex, columnIndex } = startCell;
-    const newTasks = [...tasks];
-    const tasksCopy = JSON.parse(JSON.stringify(tasks));
-    const columnsCopy = JSON.parse(JSON.stringify(columns));
-    
-    // Create new rows from paste data
-    const newRows: Task[] = [];
-    for (let i = 0; i < pasteData.rawData.length; i++) {
-      const newTask: Task = {
-        id: generateActionId(),
-        name: pasteData.rawData[i][0] || `New Task ${i+1}`,
-        status: 'todo',
-        priority: 'medium',
-        startDate: '',
-        deadline: '',
-      };
-      
-      // Add data to columns
-      for (let j = 0; j < pasteData.rawData[i].length; j++) {
-        const currentColumnIndex = columnIndex + j;
-        if (currentColumnIndex >= columns.length) continue;
-        
-        const currentColumnId = columns[currentColumnIndex].id;
-        newTask[currentColumnId] = pasteData.rawData[i][j];
-      }
-      
-      newRows.push(newTask);
-    }
-    
-    // Insert the new rows after the target row
-    newTasks.splice(rowIndex + 1, 0, ...newRows);
-    
-    // Apply formatting if available
-    if (pasteData.hasFormatting && pasteData.formattedData) {
-      const newCellFormatting = new Map(cellFormatting);
-      
-      for (let i = 0; i < pasteData.formattedData.length; i++) {
-        const currentRowIndex = rowIndex + 1 + i;
-        if (currentRowIndex >= newTasks.length) continue;
-        
-        for (let j = 0; j < pasteData.formattedData[i].length; j++) {
-          const currentColumnIndex = columnIndex + j;
-          if (currentColumnIndex >= columns.length) continue;
-          
-          const currentTaskId = newTasks[currentRowIndex].id;
-          const currentColumnId = columns[currentColumnIndex].id;
-          const cellKey = `${currentTaskId}-${currentColumnId}`;
-          
-          // Update the cell formatting
-          if (pasteData.formattedData[i][j].formatting) {
-            newCellFormatting.set(cellKey, pasteData.formattedData[i][j].formatting);
-          }
-        }
-      }
-      
-      setCellFormatting(newCellFormatting);
-    }
-    
-    // Update state and record history
-    setTasks(newTasks);
-    recordAction(
-      `Inserted ${newRows.length} rows from paste data`,
-      ActionType.PASTE,
-      { tasks: tasksCopy, columns: columnsCopy },
-      { tasks: newTasks, columns }
-    );
-    
-    showUndoRedoNotification(`Inserted ${newRows.length} rows`, ActionType.PASTE);
-  };
-
-  /**
-   * Insert columns from paste data
-   * @param pasteData - The data to paste
-   * @param taskId - Target task ID
-   * @param columnId - Target column ID
-   */
-  const insertColumnsFromPasteData = (pasteData: PasteFormatting, taskId: string, columnId: string) => {
-    if (!pasteData.rawData || pasteData.rawData.length === 0) return;
-    
-    // Get the starting cell coordinates
-    const startCell = getCellCoordinate(taskId, columnId);
-    if (!startCell) return;
-    
-    const { rowIndex, columnIndex } = startCell;
-    const newColumns = [...columns];
-    const tasksCopy = JSON.parse(JSON.stringify(tasks));
-    const columnsCopy = JSON.parse(JSON.stringify(columns));
-    
-    // Create new columns from paste data
-    const columnsToAdd = Math.min(pasteData.rawData[0].length, 10); // Limit to 10 new columns
-    const newColumnIds: string[] = [];
-    
-    for (let j = 0; j < columnsToAdd; j++) {
-      const newColumnId = generateActionId();
-      const newColumn: Column = {
-        id: newColumnId,
-        title: `Column ${newColumnIds.length + 1}`,
-        type: 'text',
-        width: 'w-40',
-        minWidth: 'min-w-[160px]'
-      };
-      
-      newColumns.splice(columnIndex + 1 + j, 0, newColumn);
-      newColumnIds.push(newColumnId);
-    }
-    
-    // Update tasks with new column data
-    const newTasks = tasks.map((task, taskIdx) => {
-      const updatedTask = { ...task };
-      
-      for (let j = 0; j < newColumnIds.length; j++) {
-        const dataRowIndex = taskIdx - rowIndex;
-        if (dataRowIndex >= 0 && dataRowIndex < pasteData.rawData.length) {
-          updatedTask[newColumnIds[j]] = pasteData.rawData[dataRowIndex][j] || '';
-        } else {
-          updatedTask[newColumnIds[j]] = '';
-        }
-      }
-      
-      return updatedTask;
-    });
-    
-    // Apply formatting if available
-    if (pasteData.hasFormatting && pasteData.formattedData) {
-      const newCellFormatting = new Map(cellFormatting);
-      
-      for (let i = 0; i < pasteData.formattedData.length; i++) {
-        const currentRowIndex = rowIndex + i;
-        if (currentRowIndex >= newTasks.length) continue;
-        
-        for (let j = 0; j < newColumnIds.length && j < pasteData.formattedData[i].length; j++) {
-          const currentTaskId = newTasks[currentRowIndex].id;
-          const currentColumnId = newColumnIds[j];
-          const cellKey = `${currentTaskId}-${currentColumnId}`;
-          
-          // Update the cell formatting
-          if (pasteData.formattedData[i][j].formatting) {
-            newCellFormatting.set(cellKey, pasteData.formattedData[i][j].formatting);
-          }
-        }
-      }
-      
-      setCellFormatting(newCellFormatting);
-    }
-    
-    // Update state and record history
-    setColumns(newColumns);
-    setTasks(newTasks);
-    recordAction(
-      `Inserted ${newColumnIds.length} columns from paste data`,
-      ActionType.PASTE,
-      { tasks: tasksCopy, columns: columnsCopy },
-      { tasks: newTasks, columns: newColumns }
-    );
-    
-    showUndoRedoNotification(`Inserted ${newColumnIds.length} columns`, ActionType.PASTE);
   };
 
   // Add the handleCopy function before the handlePaste function
@@ -1814,18 +1362,6 @@ const DataTable: React.FC<{}> = () => {
               Clear selection
             </button>
           </div>
-        )}
-        
-        {/* Paste options menu */}
-        {pasteOptionsMenu.isOpen && pasteOptionsMenu.pasteData && pasteOptionsMenu.targetCell && (
-          <PasteOptionsMenu 
-            isOpen={pasteOptionsMenu.isOpen}
-            position={pasteOptionsMenu.position}
-            pasteData={pasteOptionsMenu.pasteData}
-            targetCell={pasteOptionsMenu.targetCell}
-            onClose={closePasteOptionsMenu}
-            onPaste={handlePasteWithMode}
-          />
         )}
         
         {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}

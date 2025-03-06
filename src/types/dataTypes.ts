@@ -151,23 +151,15 @@ export enum ActionType {
 /**
  * Format information for a paste operation
  * @interface PasteFormatting
- * @property {boolean} hasFormatting - Whether the pasted data has formatting
- * @property {FormattedCellData[][]} formattedData - 2D array of formatted data if available
  * @property {string[][]} rawData - 2D array of raw text data
- * @property {string} sourceFormat - Format of the source data (e.g., 'html', 'text')
- * @property {string} htmlContent - Original HTML content if available
+ * @property {string} sourceFormat - Format of the source data
  */
 export interface PasteFormatting {
   hasFormatting: boolean;
-  formattedData?: FormattedCellData[][];
   rawData: string[][];
-  sourceFormat: 'html' | 'text';
-  htmlContent?: string;
+  sourceFormat: 'text';
 }
 
-/**
- * Paste mode for different paste operations
- */
 export enum PasteMode {
   REPLACE = 'replace',      // Replace existing content
   INSERT_ROWS = 'insert_rows', // Insert new rows

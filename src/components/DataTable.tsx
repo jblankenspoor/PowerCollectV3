@@ -1383,7 +1383,7 @@ const DataTable: React.FC<{}> = () => {
         {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
         <div 
           ref={tableRef}
-          className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto inline-block"
+          className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto w-full" 
           style={{ maxWidth: '100%' }} /* Ensures it doesn't exceed viewport width */
           onPaste={handlePaste} /* Handle paste events at the table level */
           tabIndex={0} /* Make the div focusable to receive keyboard events */
@@ -1400,8 +1400,8 @@ const DataTable: React.FC<{}> = () => {
             </div>
           )}
           
-          {/* Table container - w-max ensures it only takes the space it needs */}
-          <div className="w-max table-fixed">
+          {/* Table container - min-w-full ensures it takes up at least full width */}
+          <div className="w-max min-w-full table-fixed">
             {/* Table Header Component */}
             <TableHeader 
               columns={columns}

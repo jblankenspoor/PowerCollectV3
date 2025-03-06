@@ -1706,9 +1706,198 @@ const DataTable: React.FC<{}> = () => {
     showUndoRedoNotification(`Inserted ${newColumnIds.length} columns`, ActionType.PASTE);
   };
 
+  // Add the handleCopy function before the handlePaste function
+  /**
+   * Handles copying selected cells to clipboard
+   */
+  const handleCopy = () => {
+    if (!selectionRange) return;
+    
+    const data = extractSelectedData();
+    if (data.length === 0) return;
+    
+    // Convert to CSV for clipboard
+    const csvContent = data.map(row => row.join('\t')).join('\n');
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(csvContent)
+      .then(() => {
+        setCopyNotificationMessage(`${data.length}x${data[0].length} cells copied to clipboard`);
+        setShowCopyNotification(true);
+        
+        // Hide notification after 3 seconds
+        setTimeout(() => {
+          setShowCopyNotification(false);
+        }, 3000);
+      })
+      .catch(err => {
+        console.error('Failed to copy: ', err);
+      });
+  };
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Rest of the component JSX code */}
+    <div className="w-full">
+      {/* Outer wrapper with relative positioning for scroll notification */}
+      <div className="relative">
+        {/* Scroll notification component for horizontal scrolling indication */}
+        <ScrollNotification show={showScrollNotification} />
+        
+        {/* Paste notification component */}
+        <PasteNotification 
+          show={showPasteNotification} 
+          message={pasteNotificationMessage} 
+        />
+        
+        {/* Copy notification component */}
+        <CopyNotification 
+          show={showCopyNotification} 
+          message={copyNotificationMessage} 
+        />
+        
+        {/* Undo/Redo notification component */}
+        <UndoRedoNotification 
+          show={showUndoNotification} 
+          message={undoNotificationMessage}
+          timestamp={undoNotificationTimestamp}
+          actionType={undoNotificationActionType}
+          success={undoNotificationSuccess}
+        />
+        
+        {/* Shortcuts dialog */}
+        <ShortcutsDialog 
+          isOpen={showShortcutsDialog} 
+          onClose={() => setShowShortcutsDialog(false)} 
+        />
+        
+        {/* Keyboard shortcuts help button */}
+        <button 
+          className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded z-10"
+          onClick={() => setShowShortcutsDialog(true)}
+          title="Show keyboard shortcuts"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+        
+        {/* Undo/Redo toolbar */}
+        <UndoRedoToolbar
+          canUndo={historyIndex > 0}
+          canRedo={historyIndex < history.length - 1}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          undoTooltip={getUndoTooltip()}
+          redoTooltip={getRedoTooltip()}
+        />
+        
+        {/* Selection controls */}
+        {selectionRange && (
+          <div className="absolute top-2 left-2 p-2 bg-white border border-gray-200 rounded shadow-sm z-10 flex items-center space-x-2">
+            <button 
+              className="p-1 text-gray-700 hover:bg-blue-50 rounded flex items-center"
+              onClick={handleCopy}
+              title="Copy selected cells to clipboard"
+            >
+              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+              </svg>
+              Copy
+            </button>
+            <button 
+              className="p-1 text-gray-700 hover:bg-gray-100 rounded flex items-center"
+              onClick={clearSelection}
+              title="Clear the current cell selection"
+            >
+              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Clear selection
+            </button>
+          </div>
+        )}
+        
+        {/* Paste options menu */}
+        {pasteOptionsMenu.isOpen && pasteOptionsMenu.pasteData && pasteOptionsMenu.targetCell && (
+          <PasteOptionsMenu 
+            isOpen={pasteOptionsMenu.isOpen}
+            position={pasteOptionsMenu.position}
+            pasteData={pasteOptionsMenu.pasteData}
+            targetCell={pasteOptionsMenu.targetCell}
+            onClose={closePasteOptionsMenu}
+            onPaste={handlePasteWithMode}
+          />
+        )}
+        
+        {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
+        <div 
+          ref={tableRef}
+          className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto inline-block"
+          style={{ maxWidth: '100%' }} /* Ensures it doesn't exceed viewport width */
+          onPaste={handlePaste} /* Handle paste events at the table level */
+          tabIndex={0} /* Make the div focusable to receive keyboard events */
+        >
+          {/* Special paste instructions when a cell is being edited */}
+          {editingCell && (
+            <div className="absolute top-0 right-0 p-2 bg-blue-50 text-xs text-blue-600 border-l border-b border-blue-200 rounded-bl-md z-10">
+              <div className="flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Paste data from Excel/CSV with Ctrl+V
+              </div>
+            </div>
+          )}
+          
+          {/* Table container - w-max ensures it only takes the space it needs */}
+          <div className="w-max table-fixed">
+            {/* Table Header Component */}
+            <TableHeader 
+              columns={columns}
+              allSelected={selectedTasks.size === tasks.length && tasks.length > 0}
+              onSelectAll={handleSelectAll}
+            />
+            
+            {/* Column Action Row - Provides column manipulation controls */}
+            <ColumnActionRow
+              columns={columns}
+              onAddColumnLeft={handleAddColumnLeft}
+              onAddColumnRight={handleAddColumnRight}
+              onDeleteColumn={handleDeleteColumn}
+            />
+
+            {/* Table Body - Map through tasks to create rows */}
+            {tasks.map((task, index) => (
+              <TableRow
+                key={task.id}
+                task={task}
+                columns={columns}
+                isSelected={selectedTasks.has(task.id)}
+                onSelectTask={handleSelectTask}
+                onAddColumn={handleAddColumn}
+                onDeleteTask={handleDeleteTask}
+                onUpdateTask={handleUpdateTask}
+                isLastRow={index === tasks.length - 1}
+                onSetEditingCell={handleSetEditingCell}
+                onClearEditingCell={handleClearEditingCell}
+                isEditing={editingCell?.taskId === task.id ? editingCell.columnId : null}
+                onStartSelection={handleStartSelection}
+                onUpdateSelection={handleUpdateSelection}
+                isCellInSelection={isCellSelected}
+                isSelecting={isSelecting}
+              />
+            ))}
+            
+            {/* Add row button integrated into the table */}
+            <div className="flex border-t border-gray-200">
+              <div className="flex-1 py-2 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 cursor-pointer" onClick={handleAddTask}>
+                <div className="flex items-center justify-center text-blue-500">
+                  <span className="mr-1 font-medium">+</span> Add row
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

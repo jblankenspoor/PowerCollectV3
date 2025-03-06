@@ -98,3 +98,32 @@ export interface FormattedCellData {
   value: string;
   formatting: CellFormatting;
 }
+
+/**
+ * History state entry for undo/redo functionality
+ * @interface HistoryState
+ * @property {Task[]} tasks - Snapshot of tasks state
+ * @property {Column[]} columns - Snapshot of columns state
+ * @property {number} timestamp - When the action occurred
+ * @property {string} description - Description of the action
+ */
+export interface HistoryState {
+  tasks: Task[];
+  columns: Column[];
+  timestamp: number;
+  description: string;
+}
+
+/**
+ * Action types for history tracking
+ * Used to identify what type of operation was performed
+ */
+export enum ActionType {
+  PASTE = 'paste',
+  DELETE_ROW = 'delete_row',
+  DELETE_COLUMN = 'delete_column',
+  ADD_ROW = 'add_row',
+  ADD_COLUMN = 'add_column',
+  EDIT_CELL = 'edit_cell',
+  MULTI_CELL_EDIT = 'multi_cell_edit'
+}

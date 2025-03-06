@@ -28,7 +28,7 @@ import ColumnActionRow from './ColumnActionRow';
 import useTableResize from '../hooks/useTableResize';
 
 // Import types
-import { Column, Task, CellCoordinate, SelectionRange, CellIdentifier } from '../types/dataTypes';
+import { Column, Task, CellCoordinate, SelectionRange, CellIdentifier, HistoryState, ActionType } from '../types/dataTypes';
 
 /**
  * Initial task data with predefined tasks for demonstration
@@ -105,6 +105,52 @@ const CopyNotification: React.FC<{ show: boolean; message: string }> = ({ show, 
 };
 
 /**
+ * UndoRedoToolbar component
+ * - Provides buttons for undo and redo operations
+ * - Shows history information in tooltips
+ * 
+ * @param props - Component props
+ * @returns {JSX.Element} Rendered component
+ */
+const UndoRedoToolbar: React.FC<{ 
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  undoTooltip: string;
+  redoTooltip: string;
+}> = ({ canUndo, canRedo, onUndo, onRedo, undoTooltip, redoTooltip }) => {
+  return (
+    <div className="absolute top-2 left-32 p-1 bg-white border border-gray-200 rounded shadow-sm z-10 flex items-center space-x-1">
+      <button 
+        className={`p-1.5 rounded flex items-center justify-center ${
+          canUndo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
+        }`}
+        onClick={onUndo}
+        disabled={!canUndo}
+        title={undoTooltip}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+      </button>
+      <button 
+        className={`p-1.5 rounded flex items-center justify-center ${
+          canRedo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
+        }`}
+        onClick={onRedo}
+        disabled={!canRedo}
+        title={redoTooltip}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+        </svg>
+      </button>
+    </div>
+  );
+};
+
+/**
  * Shortcuts Help Dialog component
  * - Shows available keyboard shortcuts to the user
  * 
@@ -120,6 +166,8 @@ const ShortcutsDialog: React.FC<{
   const shortcuts = [
     { key: 'Ctrl+V / Cmd+V', description: 'Paste data from clipboard' },
     { key: 'Ctrl+C / Cmd+C', description: 'Copy selected cells to clipboard' },
+    { key: 'Ctrl+Z / Cmd+Z', description: 'Undo last action' },
+    { key: 'Ctrl+Y / Cmd+Y', description: 'Redo previously undone action' },
     { key: 'Drag mouse', description: 'Select range of cells' },
     { key: 'Enter', description: 'Confirm edit and exit cell edit mode' },
     { key: 'Escape', description: 'Cancel edit or clear selection' },
@@ -188,6 +236,15 @@ const DataTable: React.FC = () => {
   const [copyNotificationMessage, setCopyNotificationMessage] = useState('');
   const [showCopyNotification, setShowCopyNotification] = useState(false);
   
+  // State for the undo/redo history
+  const [history, setHistory] = useState<HistoryState[]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [undoNotificationMessage, setUndoNotificationMessage] = useState('');
+  const [showUndoNotification, setShowUndoNotification] = useState(false);
+  
+  // Flag to prevent history recording while performing undo/redo
+  const isUndoRedoOperationRef = useRef(false);
+  
   /**
    * State for columns with fixed width settings
    * - Each column has a fixed width to ensure consistency across the table
@@ -214,12 +271,125 @@ const DataTable: React.FC = () => {
   );
 
   /**
+   * Records an action to the history stack
+   * @param description - Description of the action
+   * @param type - Type of action performed
+   */
+  const recordAction = (description: string, type: ActionType) => {
+    // Skip recording if we're in the middle of an undo/redo operation
+    if (isUndoRedoOperationRef.current) return;
+    
+    // Create history entry with current state
+    const newEntry: HistoryState = {
+      tasks: JSON.parse(JSON.stringify(tasks)), // Deep copy
+      columns: JSON.parse(JSON.stringify(columns)), // Deep copy
+      timestamp: Date.now(),
+      description
+    };
+    
+    // Truncate future history if we're not at the latest state
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(newEntry);
+    
+    // Update history state
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  /**
+   * Shows a notification after undo/redo operation
+   * @param message - Notification message
+   */
+  const showUndoRedoNotification = (message: string) => {
+    setUndoNotificationMessage(message);
+    setShowUndoNotification(true);
+    
+    // Hide the notification after 3 seconds
+    setTimeout(() => {
+      setShowUndoNotification(false);
+    }, 3000);
+  };
+
+  /**
+   * Performs an undo operation
+   */
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      isUndoRedoOperationRef.current = true;
+      
+      const prevState = history[historyIndex - 1];
+      setTasks(JSON.parse(JSON.stringify(prevState.tasks))); // Deep copy
+      setColumns(JSON.parse(JSON.stringify(prevState.columns))); // Deep copy
+      setHistoryIndex(historyIndex - 1);
+      
+      showUndoRedoNotification(`Undone: ${prevState.description}`);
+      
+      // Clear any selection
+      clearSelection();
+      
+      // Reset the flag after state updates
+      setTimeout(() => {
+        isUndoRedoOperationRef.current = false;
+      }, 0);
+    }
+  };
+
+  /**
+   * Performs a redo operation
+   */
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      isUndoRedoOperationRef.current = true;
+      
+      const nextState = history[historyIndex + 1];
+      setTasks(JSON.parse(JSON.stringify(nextState.tasks))); // Deep copy
+      setColumns(JSON.parse(JSON.stringify(nextState.columns))); // Deep copy
+      setHistoryIndex(historyIndex + 1);
+      
+      showUndoRedoNotification(`Redone: ${nextState.description}`);
+      
+      // Clear any selection
+      clearSelection();
+      
+      // Reset the flag after state updates
+      setTimeout(() => {
+        isUndoRedoOperationRef.current = false;
+      }, 0);
+    }
+  };
+
+  /**
+   * Gets tooltip text for undo button
+   */
+  const getUndoTooltip = () => {
+    if (historyIndex <= 0) return "Nothing to undo";
+    const prevAction = history[historyIndex];
+    return `Undo: ${prevAction.description}`;
+  };
+
+  /**
+   * Gets tooltip text for redo button
+   */
+  const getRedoTooltip = () => {
+    if (historyIndex >= history.length - 1) return "Nothing to redo";
+    const nextAction = history[historyIndex + 1];
+    return `Redo: ${nextAction.description}`;
+  };
+
+  /**
    * Updates a task's value for a specific column
    * @param taskId - The unique identifier of the task
    * @param columnId - The identifier of the column being updated
    * @param value - The new value for the cell
+   * @param recordHistory - Whether to record this change in history (default: true)
    */
-  const handleUpdateTask = (taskId: string, columnId: string, value: string) => {
+  const handleUpdateTask = (taskId: string, columnId: string, value: string, recordHistory = true) => {
+    const oldTask = tasks.find(task => task.id === taskId);
+    const oldValue = oldTask ? oldTask[columnId] : '';
+    
+    // Skip if value hasn't changed
+    if (oldValue === value) return;
+    
     setTasks(prev => prev.map(task => {
       if (task.id === taskId) {
         return {
@@ -229,6 +399,18 @@ const DataTable: React.FC = () => {
       }
       return task;
     }));
+    
+    // Record action in history
+    if (recordHistory && !isUndoRedoOperationRef.current) {
+      // Get column title for better description
+      const column = columns.find(col => col.id === columnId);
+      const columnTitle = column ? column.title : columnId;
+      
+      // Get task name for better description
+      const taskName = oldTask ? oldTask.name : taskId;
+      
+      recordAction(`Edit ${columnTitle} of "${taskName}"`, ActionType.EDIT_CELL);
+    }
   };
 
   /**
@@ -265,6 +447,7 @@ const DataTable: React.FC = () => {
 
   /**
    * Adds a new task to the table
+   * @returns The newly created task
    */
   const handleAddTask = () => {
     const newTask: Task = {
@@ -277,6 +460,12 @@ const DataTable: React.FC = () => {
     };
     
     setTasks(prev => [...prev, newTask]);
+    
+    // Record action in history
+    if (!isUndoRedoOperationRef.current) {
+      recordAction(`Add new task`, ActionType.ADD_ROW);
+    }
+    
     return newTask;
   };
 
@@ -285,12 +474,21 @@ const DataTable: React.FC = () => {
    * @param taskId - The unique identifier of the task to delete
    */
   const handleDeleteTask = (taskId: string) => {
+    // Find task before deletion for history recording
+    const taskToDelete = tasks.find(task => task.id === taskId);
+    const taskName = taskToDelete ? taskToDelete.name : taskId;
+    
     setTasks(prev => prev.filter(task => task.id !== taskId));
     setSelectedTasks(prev => {
       const newSet = new Set(prev);
       newSet.delete(taskId);
       return newSet;
     });
+    
+    // Record action in history
+    if (!isUndoRedoOperationRef.current) {
+      recordAction(`Delete task "${taskName}"`, ActionType.DELETE_ROW);
+    }
   };
 
   /**
@@ -325,6 +523,11 @@ const DataTable: React.FC = () => {
       ...task,
       [newColumn.id]: 'New data',
     })));
+    
+    // Record action in history
+    if (!isUndoRedoOperationRef.current) {
+      recordAction(`Add column "${newColumn.title}"`, ActionType.ADD_COLUMN);
+    }
   };
 
   /**
@@ -378,6 +581,10 @@ const DataTable: React.FC = () => {
     // Don't allow deleting the select column (index 0)
     if (columnIndex === 0) return;
     
+    // Find column before deletion for history recording
+    const columnToDelete = columns.find(col => col.id === columnId);
+    const columnTitle = columnToDelete ? columnToDelete.title : columnId;
+    
     // Remove the column from the columns array
     setColumns(prev => prev.filter(col => col.id !== columnId));
     
@@ -387,6 +594,11 @@ const DataTable: React.FC = () => {
       delete newTask[columnId];
       return newTask;
     }));
+    
+    // Record action in history
+    if (!isUndoRedoOperationRef.current) {
+      recordAction(`Delete column "${columnTitle}"`, ActionType.DELETE_COLUMN);
+    }
   };
 
   /**
@@ -659,6 +871,10 @@ const DataTable: React.FC = () => {
     // Skip if invalid starting position
     if (startRowIndex === -1 || startColumnIndex === -1) return;
     
+    // Make a copy of the current state for history comparison
+    const oldTasks = JSON.parse(JSON.stringify(tasks));
+    const oldColumns = JSON.parse(JSON.stringify(columns));
+    
     // Calculate required dimensions
     const requiredRows = startRowIndex + data.length;
     const requiredColumns = startColumnIndex + Math.max(...data.map(row => row.length));
@@ -718,9 +934,39 @@ const DataTable: React.FC = () => {
     const colCount = Math.max(...data.map(row => row.length));
     showPasteSuccessNotification(rowCount, colCount);
     
+    // Record action in history
+    if (!isUndoRedoOperationRef.current) {
+      // Determine if paste caused table expansion
+      const addedRows = updatedTasks.length - oldTasks.length;
+      const addedColumns = updatedColumns.length - oldColumns.length;
+      
+      let description = `Paste ${rowCount}×${colCount} data`;
+      if (addedRows > 0 || addedColumns > 0) {
+        description += ` (added ${addedRows > 0 ? `${addedRows} rows` : ''}${addedRows > 0 && addedColumns > 0 ? ' and ' : ''}${addedColumns > 0 ? `${addedColumns} columns` : ''})`;
+      }
+      
+      recordAction(description, ActionType.PASTE);
+    }
+    
     // Clear editing cell after paste
     setEditingCell(null);
   };
+
+  // Initialize history with initial state
+  useEffect(() => {
+    if (history.length === 0) {
+      // Create initial history entry
+      const initialState: HistoryState = {
+        tasks: JSON.parse(JSON.stringify(tasks)),
+        columns: JSON.parse(JSON.stringify(columns)),
+        timestamp: Date.now(),
+        description: "Initial state"
+      };
+      
+      setHistory([initialState]);
+      setHistoryIndex(0);
+    }
+  }, []);
 
   // Setup keyboard event listeners for the whole component
   useEffect(() => {
@@ -742,6 +988,19 @@ const DataTable: React.FC = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInputElement) {
         e.preventDefault();
         handleCopy();
+      }
+      
+      // Undo with Ctrl+Z or Cmd+Z
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !isInputElement) {
+        e.preventDefault();
+        handleUndo();
+      }
+      
+      // Redo with Ctrl+Y or Cmd+Y or Ctrl+Shift+Z or Cmd+Shift+Z
+      if (((e.ctrlKey || e.metaKey) && e.key === 'y') || 
+          ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z')) {
+        e.preventDefault();
+        handleRedo();
       }
       
       // Clear selection with Escape
@@ -819,7 +1078,7 @@ const DataTable: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [editingCell, tasks, columns, isSelecting, selectionRange]);
+  }, [editingCell, tasks, columns, isSelecting, selectionRange, historyIndex, history]);
 
   /**
    * Render method for the DataTable component
@@ -845,6 +1104,12 @@ const DataTable: React.FC = () => {
           message={copyNotificationMessage} 
         />
         
+        {/* Undo/Redo notification component */}
+        <CopyNotification 
+          show={showUndoNotification} 
+          message={undoNotificationMessage} 
+        />
+        
         {/* Shortcuts dialog */}
         <ShortcutsDialog 
           isOpen={showShortcutsDialog} 
@@ -861,6 +1126,16 @@ const DataTable: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </button>
+        
+        {/* Undo/Redo toolbar */}
+        <UndoRedoToolbar
+          canUndo={historyIndex > 0}
+          canRedo={historyIndex < history.length - 1}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          undoTooltip={getUndoTooltip()}
+          redoTooltip={getRedoTooltip()}
+        />
         
         {/* Selection controls */}
         {selectionRange && (

@@ -78,24 +78,25 @@ const CustomStatusDropdown: React.FC<{
       onKeyDown={onKeyDown}
       tabIndex={0}
     >
-      {/* Selected value display */}
+      {/* Selected value display - more compact */}
       <div 
-        className={`flex items-center justify-between px-3 py-1 border rounded-md cursor-pointer shadow-sm ${currentColorClass}`}
+        className={`flex items-center justify-between px-2 py-0.5 border rounded text-xs cursor-pointer ${currentColorClass}`}
         onClick={() => setIsOpen(!isOpen)}
+        style={{ height: '22px' }}
       >
-        <span className="text-xs font-medium">{value}</span>
-        <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <span className="font-medium">{value}</span>
+        <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </div>
       
-      {/* Dropdown options */}
+      {/* Dropdown options - more compact */}
       {isOpen && (
-        <div className="absolute left-0 right-0 mt-1 border border-gray-200 rounded-md shadow-lg bg-white overflow-hidden">
+        <div className="absolute left-0 right-0 mt-0.5 border border-gray-200 rounded shadow-sm bg-white overflow-hidden">
           {statusOptions.map((option) => (
             <div
               key={option.value}
-              className={`px-3 py-2 text-xs cursor-pointer ${option.colorClass} hover:opacity-90 transition-all duration-150 ${value === option.value ? 'font-semibold' : ''}`}
+              className={`px-2 py-1 text-xs cursor-pointer ${option.colorClass} hover:opacity-90 transition-all duration-150 ${value === option.value ? 'font-semibold' : ''}`}
               onClick={() => handleSelect(option.value)}
             >
               {option.value}

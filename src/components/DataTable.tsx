@@ -122,30 +122,47 @@ const UndoRedoToolbar: React.FC<{
 }> = ({ canUndo, canRedo, onUndo, onRedo, undoTooltip, redoTooltip }) => {
   return (
     <div className="absolute top-2 left-32 p-1 bg-white border border-gray-200 rounded shadow-sm z-10 flex items-center space-x-1">
-      <button 
-        className={`p-1.5 rounded flex items-center justify-center ${
-          canUndo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
-        }`}
-        onClick={onUndo}
-        disabled={!canUndo}
-        title={undoTooltip}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-        </svg>
-      </button>
-      <button 
-        className={`p-1.5 rounded flex items-center justify-center ${
-          canRedo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
-        }`}
-        onClick={onRedo}
-        disabled={!canRedo}
-        title={redoTooltip}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
-        </svg>
-      </button>
+      <div className="relative group">
+        <button 
+          className={`p-1.5 rounded flex items-center justify-center ${
+            canUndo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
+          }`}
+          onClick={onUndo}
+          disabled={!canUndo}
+          aria-label="Undo"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+        </button>
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block">
+          <div className="bg-gray-800 text-white text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap">
+            {undoTooltip}
+          </div>
+          <div className="w-2 h-2 bg-gray-800 transform rotate-45 absolute -bottom-1 left-1/2 -ml-1"></div>
+        </div>
+      </div>
+      
+      <div className="relative group">
+        <button 
+          className={`p-1.5 rounded flex items-center justify-center ${
+            canRedo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
+          }`}
+          onClick={onRedo}
+          disabled={!canRedo}
+          aria-label="Redo"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+          </svg>
+        </button>
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block">
+          <div className="bg-gray-800 text-white text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap">
+            {redoTooltip}
+          </div>
+          <div className="w-2 h-2 bg-gray-800 transform rotate-45 absolute -bottom-1 left-1/2 -ml-1"></div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -245,6 +262,9 @@ const DataTable: React.FC = () => {
   // Flag to prevent history recording while performing undo/redo
   const isUndoRedoOperationRef = useRef(false);
   
+  // Add a ref to track when an action is being recorded
+  const isRecordingActionRef = useRef(false);
+  
   /**
    * State for columns with fixed width settings
    * - Each column has a fixed width to ensure consistency across the table
@@ -279,6 +299,12 @@ const DataTable: React.FC = () => {
     // Skip recording if we're in the middle of an undo/redo operation
     if (isUndoRedoOperationRef.current) return;
     
+    // Skip if we're already recording an action to prevent bundling
+    if (isRecordingActionRef.current) return;
+    
+    // Set flag to prevent nested recording
+    isRecordingActionRef.current = true;
+    
     // Create history entry with current state
     const newEntry: HistoryState = {
       tasks: JSON.parse(JSON.stringify(tasks)), // Deep copy
@@ -294,6 +320,11 @@ const DataTable: React.FC = () => {
     // Update history state
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
+    
+    // Reset the flag
+    setTimeout(() => {
+      isRecordingActionRef.current = false;
+    }, 0);
   };
 
   /**
@@ -815,6 +846,8 @@ const DataTable: React.FC = () => {
     navigator.clipboard.writeText(tsvData)
       .then(() => {
         showCopySuccessNotification(data.length, data[0].length);
+        // Clear selection after successful copy
+        clearSelection();
       })
       .catch(err => {
         console.error('Failed to copy: ', err);
@@ -901,6 +934,10 @@ const DataTable: React.FC = () => {
     let updatedTasks = [...tasks];
     let updatedColumns = [...columns];
     
+    // Track if we added new rows or columns
+    let addedRows = 0;
+    let addedColumns = 0;
+    
     // Add new rows if needed
     while (updatedTasks.length < requiredRows) {
       const newTask: Task = {
@@ -912,12 +949,14 @@ const DataTable: React.FC = () => {
         deadline: 'Not set',
       };
       updatedTasks.push(newTask);
+      addedRows++;
     }
     
     // Add new columns if needed
     while (updatedColumns.length < requiredColumns) {
       const newColumn = createNewColumn(`COLUMN ${updatedColumns.length}`);
       updatedColumns.push(newColumn);
+      addedColumns++;
       
       // Add the new column data to each task
       updatedTasks = updatedTasks.map(task => ({
@@ -926,16 +965,37 @@ const DataTable: React.FC = () => {
       }));
     }
     
-    // Update the tasks with pasted data
+    // First update columns if needed (as a separate action)
+    if (addedColumns > 0) {
+      setColumns(updatedColumns);
+      
+      // Record column addition as a separate action
+      if (!isUndoRedoOperationRef.current) {
+        recordAction(`Add ${addedColumns} new columns for pasted data`, ActionType.ADD_COLUMN);
+      }
+    }
+    
+    // Then add rows if needed (as a separate action)
+    if (addedRows > 0) {
+      setTasks(updatedTasks);
+      
+      // Record row addition as a separate action
+      if (!isUndoRedoOperationRef.current) {
+        recordAction(`Add ${addedRows} new rows for pasted data`, ActionType.ADD_ROW);
+      }
+    }
+    
+    // Finally, update the tasks with pasted data (as a separate action)
+    let updatedTasksWithPastedData = [...updatedTasks];
     data.forEach((rowData, rowOffset) => {
       const taskIndex = startRowIndex + rowOffset;
-      if (taskIndex < updatedTasks.length) {
+      if (taskIndex < updatedTasksWithPastedData.length) {
         rowData.forEach((cellValue, colOffset) => {
           const columnIndex = startColumnIndex + colOffset;
           if (columnIndex < updatedColumns.length) {
             const columnId = updatedColumns[columnIndex].id;
-            updatedTasks[taskIndex] = {
-              ...updatedTasks[taskIndex],
+            updatedTasksWithPastedData[taskIndex] = {
+              ...updatedTasksWithPastedData[taskIndex],
               [columnId]: cellValue
             };
           }
@@ -943,27 +1003,17 @@ const DataTable: React.FC = () => {
       }
     });
     
-    // Update state
-    setColumns(updatedColumns);
-    setTasks(updatedTasks);
+    // Update state with pasted data
+    setTasks(updatedTasksWithPastedData);
     
     // Show success notification
     const rowCount = data.length;
     const colCount = Math.max(...data.map(row => row.length));
     showPasteSuccessNotification(rowCount, colCount);
     
-    // Record action in history
+    // Record paste action separately
     if (!isUndoRedoOperationRef.current) {
-      // Determine if paste caused table expansion
-      const addedRows = updatedTasks.length - oldTasks.length;
-      const addedColumns = updatedColumns.length - oldColumns.length;
-      
-      let description = `Paste ${rowCount}×${colCount} data`;
-      if (addedRows > 0 || addedColumns > 0) {
-        description += ` (added ${addedRows > 0 ? `${addedRows} rows` : ''}${addedRows > 0 && addedColumns > 0 ? ' and ' : ''}${addedColumns > 0 ? `${addedColumns} columns` : ''})`;
-      }
-      
-      recordAction(description, ActionType.PASTE);
+      recordAction(`Paste ${rowCount}×${colCount} data values`, ActionType.PASTE);
     }
     
     // Clear editing cell after paste

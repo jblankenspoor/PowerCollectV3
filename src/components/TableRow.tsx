@@ -151,12 +151,15 @@ const TableRow: React.FC<TableRowProps> = ({
   /**
    * Handles keyboard events for text inputs
    * @param event - The keyboard event
-   * @param columnId - The identifier of the column being edited
+   * @param columnId - The identifier of the column being edited (used to identify which cell is being edited)
    */
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLSelectElement | HTMLDivElement>, columnId: string) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      setEditingCell(null);
+      // Use columnId to exit editing mode for the specific column
+      if (editingCell === columnId) {
+        setEditingCell(null);
+      }
     } else if (event.key === 'Escape') {
       setEditingCell(null);
     }

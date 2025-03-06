@@ -106,12 +106,18 @@ export interface FormattedCellData {
  * @property {Column[]} columns - Snapshot of columns state
  * @property {number} timestamp - When the action occurred
  * @property {string} description - Description of the action
+ * @property {string} actionType - Type of action that was performed
+ * @property {string} actionId - Unique identifier for the action
+ * @property {string} formattedTime - Formatted timestamp for display
  */
 export interface HistoryState {
   tasks: Task[];
   columns: Column[];
   timestamp: number;
   description: string;
+  actionType?: string;
+  actionId?: string;
+  formattedTime?: string;
 }
 
 /**
@@ -125,5 +131,6 @@ export enum ActionType {
   ADD_ROW = 'add_row',
   ADD_COLUMN = 'add_column',
   EDIT_CELL = 'edit_cell',
-  MULTI_CELL_EDIT = 'multi_cell_edit'
+  MULTI_CELL_EDIT = 'multi_cell_edit',
+  INITIAL = 'initial_state'
 }

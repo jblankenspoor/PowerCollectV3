@@ -105,62 +105,44 @@ const CopyNotification: React.FC<{ show: boolean; message: string }> = ({ show, 
 };
 
 /**
- * UndoRedoToolbar component
- * - Provides buttons for undo and redo operations
- * - Shows history information in tooltips
+ * Notification component for undo/redo operations
+ * - Shows a temporary success message when undo/redo operation completes
+ * - Includes timestamp and action details for better tracking
  * 
  * @param props - Component props
  * @returns {JSX.Element} Rendered component
  */
-const UndoRedoToolbar: React.FC<{ 
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
-  undoTooltip: string;
-  redoTooltip: string;
-}> = ({ canUndo, canRedo, onUndo, onRedo, undoTooltip, redoTooltip }) => {
+const UndoRedoNotification: React.FC<{ 
+  show: boolean; 
+  message: string;
+  timestamp?: string;
+  actionType?: string;
+  success?: boolean;
+}> = ({ show, message, timestamp, actionType, success = true }) => {
+  if (!show) return null;
+  
+  const statusColor = success ? 'bg-purple-100 border-purple-200 text-purple-800' : 'bg-red-100 border-red-200 text-red-800';
+  
   return (
-    <div className="absolute top-2 left-32 p-1 bg-white border border-gray-200 rounded shadow-sm z-10 flex items-center space-x-1">
-      <div className="relative group">
-        <button 
-          className={`p-1.5 rounded flex items-center justify-center ${
-            canUndo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
-          }`}
-          onClick={onUndo}
-          disabled={!canUndo}
-          aria-label="Undo"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+    <div className={`absolute top-28 right-0 m-4 p-3 ${statusColor} rounded shadow-md transition-opacity duration-300 opacity-90 z-50`}>
+      <div className="flex items-center">
+        {success ? (
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-        </button>
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block">
-          <div className="bg-gray-800 text-white text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap">
-            {undoTooltip}
-          </div>
-          <div className="w-2 h-2 bg-gray-800 transform rotate-45 absolute -bottom-1 left-1/2 -ml-1"></div>
-        </div>
-      </div>
-      
-      <div className="relative group">
-        <button 
-          className={`p-1.5 rounded flex items-center justify-center ${
-            canRedo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
-          }`}
-          onClick={onRedo}
-          disabled={!canRedo}
-          aria-label="Redo"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+        ) : (
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-        </button>
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block">
-          <div className="bg-gray-800 text-white text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap">
-            {redoTooltip}
-          </div>
-          <div className="w-2 h-2 bg-gray-800 transform rotate-45 absolute -bottom-1 left-1/2 -ml-1"></div>
+        )}
+        <div>
+          <div className="font-medium">{message}</div>
+          {(timestamp || actionType) && (
+            <div className="text-xs mt-1 opacity-80">
+              {actionType && <span className="bg-white bg-opacity-30 px-1 py-0.5 rounded">{actionType}</span>}
+              {timestamp && <span className="ml-1">{timestamp}</span>}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -229,6 +211,69 @@ const ShortcutsDialog: React.FC<{
 };
 
 /**
+ * UndoRedoToolbar component
+ * - Provides buttons for undo and redo operations
+ * - Shows history information in tooltips
+ * 
+ * @param props - Component props
+ * @returns {JSX.Element} Rendered component
+ */
+const UndoRedoToolbar: React.FC<{ 
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  undoTooltip: string;
+  redoTooltip: string;
+}> = ({ canUndo, canRedo, onUndo, onRedo, undoTooltip, redoTooltip }) => {
+  return (
+    <div className="absolute top-2 left-32 p-1 bg-white border border-gray-200 rounded shadow-sm z-10 flex items-center space-x-1">
+      <div className="relative group">
+        <button 
+          className={`p-1.5 rounded flex items-center justify-center ${
+            canUndo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
+          }`}
+          onClick={onUndo}
+          disabled={!canUndo}
+          aria-label="Undo"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+        </button>
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block">
+          <div className="bg-gray-800 text-white text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap">
+            {undoTooltip}
+          </div>
+          <div className="w-2 h-2 bg-gray-800 transform rotate-45 absolute -bottom-1 left-1/2 -ml-1"></div>
+        </div>
+      </div>
+      
+      <div className="relative group">
+        <button 
+          className={`p-1.5 rounded flex items-center justify-center ${
+            canRedo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
+          }`}
+          onClick={onRedo}
+          disabled={!canRedo}
+          aria-label="Redo"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+          </svg>
+        </button>
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block">
+          <div className="bg-gray-800 text-white text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap">
+            {redoTooltip}
+          </div>
+          <div className="w-2 h-2 bg-gray-800 transform rotate-45 absolute -bottom-1 left-1/2 -ml-1"></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Main DataTable component
  * Manages the state and rendering of the interactive data table
  */
@@ -257,7 +302,10 @@ const DataTable: React.FC = () => {
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [undoNotificationMessage, setUndoNotificationMessage] = useState('');
+  const [undoNotificationTimestamp, setUndoNotificationTimestamp] = useState('');
+  const [undoNotificationActionType, setUndoNotificationActionType] = useState('');
   const [showUndoNotification, setShowUndoNotification] = useState(false);
+  const [undoNotificationSuccess, setUndoNotificationSuccess] = useState(true);
   
   // Flag to prevent history recording while performing undo/redo
   const isUndoRedoOperationRef = useRef(false);
@@ -267,6 +315,11 @@ const DataTable: React.FC = () => {
   
   // Track the timeouts used for batch operations
   const batchTimeoutsRef = useRef<number[]>([]);
+  
+  // Generate a unique action ID for history entries
+  const generateActionId = () => {
+    return Date.now().toString() + '-' + Math.random().toString(36).substring(2, 15);
+  };
 
   /**
    * State for columns with fixed width settings
@@ -303,62 +356,87 @@ const DataTable: React.FC = () => {
     // Skip recording if we're in the middle of an undo/redo operation
     if (isUndoRedoOperationRef.current) return;
     
-    // Set flag to prevent nested recording
-    isRecordingActionRef.current = true;
-    
-    // Create unique timestamp with small offset to ensure actions are distinct
-    const timestamp = Date.now() + Math.random();
-    
-    // Create history entry with provided or current state
-    const newEntry: HistoryState = {
-      tasks: customState?.tasks ? JSON.parse(JSON.stringify(customState.tasks)) : JSON.parse(JSON.stringify(tasks)),
-      columns: customState?.columns ? JSON.parse(JSON.stringify(customState.columns)) : JSON.parse(JSON.stringify(columns)),
-      timestamp,
-      description
-    };
-    
-    // Use setTimeout to ensure each action gets a unique entry
-    // This ensures actions are recorded individually even if they happen in quick succession
-    const timeoutId = window.setTimeout(() => {
-      // Truncate future history if we're not at the latest state
-      setHistory(prev => {
-        const newHistory = prev.slice(0, historyIndex + 1);
-        newHistory.push(newEntry);
-        return newHistory;
-      });
+    try {
+      // Set flag to prevent nested recording
+      isRecordingActionRef.current = true;
       
-      setHistoryIndex(prev => prev + 1);
+      // Create unique timestamp with millisecond precision
+      const now = new Date();
+      const timestamp = now.getTime() + Math.random();
+      const formattedTime = now.toISOString();
+      const actionId = generateActionId();
       
-      // Reset the flag
+      // Create history entry with provided or current state
+      const newEntry: HistoryState = {
+        tasks: customState?.tasks ? JSON.parse(JSON.stringify(customState.tasks)) : JSON.parse(JSON.stringify(tasks)),
+        columns: customState?.columns ? JSON.parse(JSON.stringify(customState.columns)) : JSON.parse(JSON.stringify(columns)),
+        timestamp,
+        description,
+        actionType: type,
+        actionId,
+        formattedTime
+      };
+      
+      // Clear any previous timeouts to prevent race conditions
+      batchTimeoutsRef.current.forEach(id => window.clearTimeout(id));
+      batchTimeoutsRef.current = [];
+      
+      // Use setTimeout to ensure each action gets a unique entry
+      // This ensures actions are recorded individually even if they happen in quick succession
+      const timeoutId = window.setTimeout(() => {
+        // Truncate future history if we're not at the latest state
+        setHistory(prev => {
+          const newHistory = prev.slice(0, historyIndex + 1);
+          newHistory.push(newEntry);
+          return newHistory;
+        });
+        
+        setHistoryIndex(prev => prev + 1);
+        
+        // Log for debugging
+        console.log(`Recorded action: ${description} [${type}] at ${formattedTime} with ID ${actionId}`);
+        
+        // Reset the flag
+        isRecordingActionRef.current = false;
+        
+        // Remove this timeout from the tracking array
+        batchTimeoutsRef.current = batchTimeoutsRef.current.filter(id => id !== timeoutId);
+      }, 50); // Slight delay to ensure sequential processing
+      
+      // Track the timeout ID
+      batchTimeoutsRef.current.push(timeoutId);
+    } catch (error) {
+      console.error('Error recording action:', error);
       isRecordingActionRef.current = false;
       
-      // Remove this timeout from the tracking array
-      batchTimeoutsRef.current = batchTimeoutsRef.current.filter(id => id !== timeoutId);
-    }, 0);
-    
-    // Track the timeout ID
-    batchTimeoutsRef.current.push(timeoutId);
+      // Show error notification
+      showUndoRedoNotification(`Error recording action: ${description}`, 'ERROR', false);
+    }
   };
-
-  // Clear any pending timeouts when unmounting
-  useEffect(() => {
-    return () => {
-      batchTimeoutsRef.current.forEach(id => window.clearTimeout(id));
-    };
-  }, []);
 
   /**
    * Shows a notification after undo/redo operation
    * @param message - Notification message
+   * @param actionType - Type of action performed
+   * @param success - Whether the operation was successful
    */
-  const showUndoRedoNotification = (message: string) => {
-    setUndoNotificationMessage(message);
-    setShowUndoNotification(true);
-    
-    // Hide the notification after 3 seconds
-    setTimeout(() => {
-      setShowUndoNotification(false);
-    }, 3000);
+  const showUndoRedoNotification = (message: string, actionType?: string, success: boolean = true) => {
+    try {
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+      
+      setUndoNotificationMessage(message);
+      setUndoNotificationTimestamp(timestamp);
+      setUndoNotificationActionType(actionType || '');
+      setUndoNotificationSuccess(success);
+      setShowUndoNotification(true);
+      
+      // Hide the notification after 4 seconds
+      setTimeout(() => {
+        setShowUndoNotification(false);
+      }, 4000);
+    } catch (error) {
+      console.error('Error showing notification:', error);
+    }
   };
 
   /**
@@ -367,7 +445,7 @@ const DataTable: React.FC = () => {
   const getUndoTooltip = () => {
     if (historyIndex <= 0) return "Nothing to undo";
     const prevAction = history[historyIndex];
-    return `Undo: ${prevAction.description}`;
+    return `Undo: ${prevAction.description} (${prevAction.formattedTime?.slice(11, 19) || ''})`;
   };
 
   /**
@@ -376,7 +454,7 @@ const DataTable: React.FC = () => {
   const getRedoTooltip = () => {
     if (historyIndex >= history.length - 1) return "Nothing to redo";
     const nextAction = history[historyIndex + 1];
-    return `Redo: ${nextAction.description}`;
+    return `Redo: ${nextAction.description} (${nextAction.formattedTime?.slice(11, 19) || ''})`;
   };
 
   /**
@@ -384,22 +462,35 @@ const DataTable: React.FC = () => {
    */
   const handleUndo = () => {
     if (historyIndex > 0) {
-      isUndoRedoOperationRef.current = true;
-      
-      const prevState = history[historyIndex - 1];
-      setTasks(JSON.parse(JSON.stringify(prevState.tasks))); // Deep copy
-      setColumns(JSON.parse(JSON.stringify(prevState.columns))); // Deep copy
-      setHistoryIndex(historyIndex - 1);
-      
-      showUndoRedoNotification(`Undone: ${prevState.description}`);
-      
-      // Clear any selection
-      clearSelection();
-      
-      // Reset the flag after state updates
-      setTimeout(() => {
+      try {
+        isUndoRedoOperationRef.current = true;
+        
+        const prevState = history[historyIndex - 1];
+        setTasks(JSON.parse(JSON.stringify(prevState.tasks))); // Deep copy
+        setColumns(JSON.parse(JSON.stringify(prevState.columns))); // Deep copy
+        setHistoryIndex(historyIndex - 1);
+        
+        // Show notification with timestamp and action type
+        showUndoRedoNotification(
+          `Undone: ${prevState.description}`, 
+          prevState.actionType,
+          true
+        );
+        
+        // Clear any selection
+        clearSelection();
+        
+        // Reset the flag after state updates
+        setTimeout(() => {
+          isUndoRedoOperationRef.current = false;
+        }, 50);
+      } catch (error) {
+        console.error('Error performing undo:', error);
         isUndoRedoOperationRef.current = false;
-      }, 0);
+        
+        // Show error notification
+        showUndoRedoNotification('Error performing undo operation', 'ERROR', false);
+      }
     }
   };
 
@@ -408,22 +499,35 @@ const DataTable: React.FC = () => {
    */
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
-      isUndoRedoOperationRef.current = true;
-      
-      const nextState = history[historyIndex + 1];
-      setTasks(JSON.parse(JSON.stringify(nextState.tasks))); // Deep copy
-      setColumns(JSON.parse(JSON.stringify(nextState.columns))); // Deep copy
-      setHistoryIndex(historyIndex + 1);
-      
-      showUndoRedoNotification(`Redone: ${nextState.description}`);
-      
-      // Clear any selection
-      clearSelection();
-      
-      // Reset the flag after state updates
-      setTimeout(() => {
+      try {
+        isUndoRedoOperationRef.current = true;
+        
+        const nextState = history[historyIndex + 1];
+        setTasks(JSON.parse(JSON.stringify(nextState.tasks))); // Deep copy
+        setColumns(JSON.parse(JSON.stringify(nextState.columns))); // Deep copy
+        setHistoryIndex(historyIndex + 1);
+        
+        // Show notification with timestamp and action type
+        showUndoRedoNotification(
+          `Redone: ${nextState.description}`, 
+          nextState.actionType,
+          true
+        );
+        
+        // Clear any selection
+        clearSelection();
+        
+        // Reset the flag after state updates
+        setTimeout(() => {
+          isUndoRedoOperationRef.current = false;
+        }, 50);
+      } catch (error) {
+        console.error('Error performing redo:', error);
         isUndoRedoOperationRef.current = false;
-      }, 0);
+        
+        // Show error notification
+        showUndoRedoNotification('Error performing redo operation', 'ERROR', false);
+      }
     }
   };
 
@@ -1082,16 +1186,24 @@ const DataTable: React.FC = () => {
   // Initialize history with initial state
   useEffect(() => {
     if (history.length === 0) {
-      // Create initial history entry
-      const initialState: HistoryState = {
-        tasks: JSON.parse(JSON.stringify(tasks)),
-        columns: JSON.parse(JSON.stringify(columns)),
-        timestamp: Date.now(),
-        description: "Initial state"
-      };
-      
-      setHistory([initialState]);
-      setHistoryIndex(0);
+      try {
+        // Create initial history entry
+        const now = new Date();
+        const initialState: HistoryState = {
+          tasks: JSON.parse(JSON.stringify(tasks)),
+          columns: JSON.parse(JSON.stringify(columns)),
+          timestamp: now.getTime(),
+          description: "Initial state",
+          actionType: ActionType.INITIAL,
+          actionId: generateActionId(),
+          formattedTime: now.toISOString()
+        };
+        
+        setHistory([initialState]);
+        setHistoryIndex(0);
+      } catch (error) {
+        console.error('Error initializing history:', error);
+      }
     }
   }, []);
 
@@ -1207,6 +1319,13 @@ const DataTable: React.FC = () => {
     };
   }, [editingCell, tasks, columns, isSelecting, selectionRange, historyIndex, history]);
 
+  // Clear any pending timeouts when unmounting
+  useEffect(() => {
+    return () => {
+      batchTimeoutsRef.current.forEach(id => window.clearTimeout(id));
+    };
+  }, []);
+
   /**
    * Render method for the DataTable component
    * Uses modular components for better maintainability and performance
@@ -1232,9 +1351,12 @@ const DataTable: React.FC = () => {
         />
         
         {/* Undo/Redo notification component */}
-        <CopyNotification 
+        <UndoRedoNotification 
           show={showUndoNotification} 
-          message={undoNotificationMessage} 
+          message={undoNotificationMessage}
+          timestamp={undoNotificationTimestamp}
+          actionType={undoNotificationActionType}
+          success={undoNotificationSuccess}
         />
         
         {/* Shortcuts dialog */}

@@ -1134,19 +1134,18 @@ const DataTable: React.FC<{}> = () => {
     };
     
     try {
-      // Parse the raw text into rows and cells
-      const rows = clipboardText.trim().split(/\r?\n/);
-      const data: string[][] = [];
+      // Split by newlines to get rows
+      const rows = clipboardText.split(/\r?\n/).filter(row => row.trim() !== '');
       
-      for (const row of rows) {
-        // Split by tab for Excel/TSV format
-        const cells = row.split('\t');
-        data.push(cells);
-      }
+      // Detect delimiter (tab for Excel, comma for CSV)
+      const delimiter = rows[0].includes('\t') ? '\t' : ',';
       
-      result.rawData = data;
+      // Parse each row into columns
+      result.rawData = rows.map(row => row.split(delimiter));
     } catch (error) {
       console.error('Error parsing clipboard data:', error);
+      // Ensure we always return at least an empty array
+      result.rawData = [['']];
     }
     
     return result;
@@ -1183,21 +1182,33 @@ const DataTable: React.FC<{}> = () => {
    * @param event - ClipboardEvent containing the pasted data
    */
   const handlePaste = (event: React.ClipboardEvent<HTMLElement>) => {
-    // Prevent default paste behavior
-    event.preventDefault();
-    
-    // Get clipboard data
-    const clipboardText = event.clipboardData?.getData('text/plain') || '';
-    
-    if (clipboardText && editingCell) {
-      // Process the clipboard data (simplified to just handle text)
-      const parsedData = parseClipboardData(clipboardText);
+    try {
+      // Prevent default paste behavior
+      event.preventDefault();
       
-      // Apply data directly without showing options
-      applyPastedData(parsedData.rawData, editingCell.taskId, editingCell.columnId);
+      // Get clipboard data as text
+      const clipboardData = event.clipboardData?.getData('text/plain') || '';
       
-      // Show notification
-      setPasteNotificationMessage("Data pasted successfully");
+      if (clipboardData && editingCell) {
+        // Process the clipboard data
+        const parsedData = parseClipboardData(clipboardData);
+        
+        // Apply the data to the table
+        applyPastedData(parsedData.rawData, editingCell.taskId, editingCell.columnId);
+        
+        // Show notification
+        setPasteNotificationMessage("Data pasted successfully");
+        setShowPasteNotification(true);
+        
+        // Hide notification after 3 seconds
+        setTimeout(() => {
+          setShowPasteNotification(false);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error handling paste:', error);
+      // Show error notification
+      setPasteNotificationMessage("Error pasting data");
       setShowPasteNotification(true);
       
       // Hide notification after 3 seconds
@@ -1214,44 +1225,49 @@ const DataTable: React.FC<{}> = () => {
    * @param columnId - Target column ID
    */
   const applyPastedData = (data: string[][], taskId: string, columnId: string) => {
-    if (!data || data.length === 0) return;
-    
-    // Get the starting cell coordinates
-    const startCell = getCellCoordinate(taskId, columnId);
-    if (!startCell) return;
-    
-    const { rowIndex, columnIndex } = startCell;
-    const newTasks = [...tasks];
-    const tasksCopy = JSON.parse(JSON.stringify(tasks));
-    const columnsCopy = JSON.parse(JSON.stringify(columns));
-    
-    // Apply the data to the table
-    for (let i = 0; i < data.length; i++) {
-      const currentRowIndex = rowIndex + i;
-      if (currentRowIndex >= newTasks.length) continue;
+    try {
+      if (!data || data.length === 0) return;
       
-      for (let j = 0; j < data[i].length; j++) {
-        const currentColumnIndex = columnIndex + j;
-        if (currentColumnIndex >= columns.length) continue;
+      // Get the starting cell coordinates
+      const startCell = getCellCoordinate(taskId, columnId);
+      if (!startCell) return;
+      
+      const { rowIndex, columnIndex } = startCell;
+      const newTasks = [...tasks];
+      const tasksCopy = JSON.parse(JSON.stringify(tasks));
+      const columnsCopy = JSON.parse(JSON.stringify(columns));
+      
+      // Apply the data to the table
+      for (let i = 0; i < data.length; i++) {
+        const currentRowIndex = rowIndex + i;
+        if (currentRowIndex >= newTasks.length) continue;
         
-        const currentTaskId = newTasks[currentRowIndex].id;
-        const currentColumnId = columns[currentColumnIndex].id;
-        
-        // Update the cell value
-        newTasks[currentRowIndex][currentColumnId] = data[i][j];
+        for (let j = 0; j < data[i].length; j++) {
+          const currentColumnIndex = columnIndex + j;
+          if (currentColumnIndex >= columns.length) continue;
+          
+          const currentTaskId = newTasks[currentRowIndex].id;
+          const currentColumnId = columns[currentColumnIndex].id;
+          
+          // Update the cell value
+          newTasks[currentRowIndex][currentColumnId] = data[i][j];
+        }
       }
+      
+      // Update state and record history
+      setTasks(newTasks);
+      recordAction(
+        `Pasted data at ${columns[columnIndex].title}:${taskId}`,
+        ActionType.PASTE,
+        { tasks: tasksCopy, columns: columnsCopy },
+        { tasks: newTasks, columns }
+      );
+      
+      showUndoRedoNotification("Data pasted successfully", ActionType.PASTE);
+    } catch (error) {
+      console.error('Error applying pasted data:', error);
+      showUndoRedoNotification("Error applying pasted data", "ERROR", false);
     }
-    
-    // Update state and record history
-    setTasks(newTasks);
-    recordAction(
-      `Pasted data at ${columns[columnIndex].title}:${taskId}`,
-      ActionType.PASTE,
-      { tasks: tasksCopy, columns: columnsCopy },
-      { tasks: newTasks, columns }
-    );
-    
-    showUndoRedoNotification("Data pasted successfully", ActionType.PASTE);
   };
 
   // Add the handleCopy function before the handlePaste function

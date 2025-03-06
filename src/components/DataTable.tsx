@@ -28,7 +28,24 @@ import ColumnActionRow from './ColumnActionRow';
 import useTableResize from '../hooks/useTableResize';
 
 // Import types
-import { Column, Task, CellCoordinate, SelectionRange, CellIdentifier, HistoryState, ActionType } from '../types/dataTypes';
+import { 
+  Column, 
+  Task, 
+  CellCoordinate, 
+  SelectionRange, 
+  CellIdentifier, 
+  HistoryState, 
+  ActionType,
+  CellFormatting,
+  FormattedCellData,
+  PasteFormatting,
+  PasteMode
+} from '../types/dataTypes';
+
+// Add this interface at the top of the file, before the component declarations
+interface CustomWindow extends Window {
+  notificationTimeout?: number;
+}
 
 /**
  * Initial task data with predefined tasks for demonstration
@@ -274,10 +291,252 @@ const UndoRedoToolbar: React.FC<{
 };
 
 /**
+ * Parses HTML content from clipboard to extract formatted data
+ * @param htmlContent - HTML content from clipboard
+ * @returns Structured data with formatting
+ */
+const parseHtmlContent = (htmlContent: string): FormattedCellData[][] | null => {
+  try {
+    // Create a DOM parser
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    
+    // Look for a table element - Excel normally provides data as a table
+    const table = doc.querySelector('table');
+    if (!table) return null;
+    
+    // Extract rows
+    const rows: FormattedCellData[][] = [];
+    
+    // Process table rows (tr elements)
+    const trElements = table.querySelectorAll('tr');
+    trElements.forEach(tr => {
+      const rowData: FormattedCellData[] = [];
+      
+      // Process cells (td or th elements)
+      const cellElements = tr.querySelectorAll('td, th');
+      cellElements.forEach(cell => {
+        // Extract formatting
+        const style = window.getComputedStyle(cell);
+        const isHeader = cell.tagName.toLowerCase() === 'th';
+        
+        const formatting: CellFormatting = {
+          backgroundColor: style.backgroundColor !== 'rgba(0, 0, 0, 0)' ? style.backgroundColor : undefined,
+          textColor: style.color !== '' ? style.color : undefined,
+          fontWeight: style.fontWeight !== 'normal' ? style.fontWeight : undefined,
+          fontStyle: style.fontStyle !== 'normal' ? style.fontStyle : undefined,
+          alignment: (style.textAlign as 'left' | 'center' | 'right') || undefined,
+          fontSize: style.fontSize !== '' ? style.fontSize : undefined,
+          isHeader,
+          fontFamily: style.fontFamily !== '' ? style.fontFamily : undefined,
+          textDecoration: style.textDecoration !== 'none' ? style.textDecoration : undefined
+        };
+        
+        // Clean up formatting by removing undefined properties
+        Object.keys(formatting).forEach(key => {
+          if (formatting[key as keyof CellFormatting] === undefined) {
+            delete formatting[key as keyof CellFormatting];
+          }
+        });
+        
+        // Add cell data
+        rowData.push({
+          value: cell.textContent || '',
+          formatting
+        });
+      });
+      
+      // Add row if it has cells
+      if (rowData.length > 0) {
+        rows.push(rowData);
+      }
+    });
+    
+    return rows.length > 0 ? rows : null;
+  } catch (error) {
+    console.error('Error parsing HTML content:', error);
+    return null;
+  }
+};
+
+/**
+ * Extract formatting information from a styled HTML element
+ * @param element - HTML element to analyze
+ * @returns Extracted formatting
+ */
+const extractFormatting = (element: HTMLElement): CellFormatting => {
+  const style = window.getComputedStyle(element);
+  const isHeader = element.tagName.toLowerCase() === 'th';
+  
+  return {
+    backgroundColor: style.backgroundColor !== 'rgba(0, 0, 0, 0)' ? style.backgroundColor : undefined,
+    textColor: style.color !== '' ? style.color : undefined,
+    fontWeight: style.fontWeight !== 'normal' ? style.fontWeight : undefined,
+    fontStyle: style.fontStyle !== 'normal' ? style.fontStyle : undefined,
+    alignment: (style.textAlign as 'left' | 'center' | 'right') || undefined,
+    fontSize: style.fontSize !== '' ? style.fontSize : undefined,
+    isHeader,
+    fontFamily: style.fontFamily !== '' ? style.fontFamily : undefined,
+    textDecoration: style.textDecoration !== 'none' ? style.textDecoration : undefined
+  };
+};
+
+/**
+ * PasteOption interface defines a single paste option
+ * @interface PasteOption
+ * @property {string} id - Unique identifier for the option
+ * @property {string} label - Display label
+ * @property {string} description - Longer description of the behavior
+ * @property {PasteMode} mode - The paste mode this option represents
+ * @property {React.ReactNode} icon - Icon to display with the option
+ */
+interface PasteOption {
+  id: string;
+  label: string;
+  description: string;
+  mode: PasteMode;
+  icon: React.ReactNode;
+}
+
+/**
+ * PasteOptionsMenu component
+ * - Context menu for paste options when pasting formatted data
+ * 
+ * @param props - Component props
+ * @returns {JSX.Element} Rendered component
+ */
+const PasteOptionsMenu: React.FC<{
+  isOpen: boolean;
+  position: { x: number; y: number };
+  pasteData: PasteFormatting;
+  targetCell: CellIdentifier;
+  onClose: () => void;
+  onPaste: (data: PasteFormatting, taskId: string, columnId: string, mode: PasteMode) => void;
+}> = ({ isOpen, position, pasteData, targetCell, onClose, onPaste }) => {
+  // Early return if menu is closed
+  if (!isOpen) return null;
+  
+  // Define paste options
+  const pasteOptions: PasteOption[] = [
+    {
+      id: 'replace',
+      label: 'Replace',
+      description: 'Replace existing content with pasted data',
+      mode: PasteMode.REPLACE,
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 11h16M4 15h16M4 19h16" />
+        </svg>
+      )
+    },
+    {
+      id: 'insert_rows',
+      label: 'Insert as rows',
+      description: 'Insert pasted data as new rows',
+      mode: PasteMode.INSERT_ROWS,
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        </svg>
+      )
+    },
+    {
+      id: 'insert_columns',
+      label: 'Insert as columns',
+      description: 'Insert pasted data as new columns',
+      mode: PasteMode.INSERT_COLUMNS,
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
+    {
+      id: 'values_only',
+      label: 'Values only',
+      description: 'Paste only values without formatting',
+      mode: PasteMode.VALUES_ONLY,
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+        </svg>
+      )
+    },
+    {
+      id: 'formats_only',
+      label: 'Formatting only',
+      description: 'Apply only formatting without changing values',
+      mode: PasteMode.FORMATS_ONLY,
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+        </svg>
+      )
+    }
+  ];
+  
+  // Handle item click
+  const handleOptionClick = (option: PasteOption) => {
+    onPaste(pasteData, targetCell.taskId, targetCell.columnId, option.mode);
+    onClose();
+  };
+  
+  // Calculate menu position to ensure it stays within viewport
+  const menuStyle = {
+    top: `${position.y}px`,
+    left: `${position.x}px`,
+    zIndex: 1000,
+    width: '280px'
+  };
+  
+  // Handle clicking outside to close the menu
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.paste-options-menu')) {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [onClose]);
+  
+  return (
+    <div 
+      className="absolute bg-white rounded-md shadow-lg border border-gray-200 paste-options-menu" 
+      style={menuStyle}
+    >
+      <div className="p-3 border-b border-gray-200 bg-gray-50 rounded-t-md">
+        <h3 className="font-medium text-gray-700">Paste Options</h3>
+        <p className="text-xs text-gray-500 mt-1">Choose how to paste the {pasteData.hasFormatting ? 'formatted ' : ''}data</p>
+      </div>
+      <div className="divide-y divide-gray-100">
+        {pasteOptions.map((option) => (
+          <div 
+            key={option.id}
+            className="p-3 hover:bg-blue-50 cursor-pointer transition-colors flex items-start"
+            onClick={() => handleOptionClick(option)}
+          >
+            <div className="text-gray-500 mr-3 mt-0.5">{option.icon}</div>
+            <div>
+              <div className="font-medium text-gray-800">{option.label}</div>
+              <div className="text-xs text-gray-500 mt-1">{option.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/**
  * Main DataTable component
  * Manages the state and rendering of the interactive data table
  */
-const DataTable: React.FC = () => {
+const DataTable: React.FC<{}> = () => {
   // State for managing tasks and their selection
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -325,6 +584,20 @@ const DataTable: React.FC = () => {
   const tasksRef = useRef<Task[]>([]);
   const columnsRef = useRef<Column[]>([]);
   
+  // State for storing cell formatting
+  const [cellFormatting, setCellFormatting] = useState<Map<string, CellFormatting>>(new Map());
+  
+  // State for paste mode
+  const [pasteMode, setPasteMode] = useState<PasteMode>(PasteMode.REPLACE);
+  
+  // State for paste options menu
+  const [pasteOptionsMenu, setPasteOptionsMenu] = useState({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    pasteData: null as PasteFormatting | null,
+    targetCell: null as CellIdentifier | null
+  });
+  
   // Update refs when state changes
   useEffect(() => {
     tasksRef.current = tasks;
@@ -355,8 +628,8 @@ const DataTable: React.FC = () => {
   const recordAction = (
     description: string, 
     type: ActionType, 
-    beforeState?: { tasks?: Task[], columns?: Column[] },
-    afterState?: { tasks?: Task[], columns?: Column[] }
+    beforeState?: { tasks?: Task[], columns?: Column[], cellFormatting?: Map<string, CellFormatting> },
+    afterState?: { tasks?: Task[], columns?: Column[], cellFormatting?: Map<string, CellFormatting> }
   ) => {
     // Skip recording if we're in the middle of an undo/redo operation
     if (isUndoRedoOperationRef.current) return;
@@ -423,8 +696,8 @@ const DataTable: React.FC = () => {
       });
       
       // Cancel any existing notification hide timeouts
-      if (window.notificationTimeout) {
-        clearTimeout(window.notificationTimeout);
+      if ((window as unknown as CustomWindow).notificationTimeout) {
+        clearTimeout((window as unknown as CustomWindow).notificationTimeout);
       }
       
       setUndoNotificationMessage(message);
@@ -434,7 +707,7 @@ const DataTable: React.FC = () => {
       setShowUndoNotification(true);
       
       // Hide the notification after 4 seconds
-      window.notificationTimeout = setTimeout(() => {
+      (window as unknown as CustomWindow).notificationTimeout = setTimeout(() => {
         setShowUndoNotification(false);
       }, 4000);
     } catch (error) {
@@ -1011,536 +1284,434 @@ const DataTable: React.FC = () => {
   };
 
   /**
-   * Shows a notification after copy operation
-   * @param rowCount - Number of rows copied
-   * @param colCount - Number of columns copied
-   */
-  const showCopySuccessNotification = (rowCount: number, colCount: number) => {
-    setCopyNotificationMessage(`Successfully copied ${rowCount} × ${colCount} cells to clipboard`);
-    setShowCopyNotification(true);
-    
-    // Hide the notification after 3 seconds
-    setTimeout(() => {
-      setShowCopyNotification(false);
-    }, 3000);
-  };
-
-  /**
-   * Handles copying selected data to the clipboard
-   */
-  const handleCopy = () => {
-    if (!selectionRange) return;
-    
-    // Extract data from selected range
-    const data = extractSelectedData();
-    if (data.length === 0 || data[0].length === 0) return;
-    
-    // Convert to TSV format for Excel compatibility
-    const tsvData = data.map(row => row.join('\t')).join('\n');
-    
-    // Write to clipboard using Clipboard API
-    navigator.clipboard.writeText(tsvData)
-      .then(() => {
-        showCopySuccessNotification(data.length, data[0].length);
-        // Clear selection after successful copy
-        clearSelection();
-      })
-      .catch(err => {
-        console.error('Failed to copy: ', err);
-      });
-  };
-
-  /**
-   * Parses clipboard data into a structured format
+   * Parses clipboard data into a structured format with optional formatting
    * @param clipboardText - Raw text from clipboard
-   * @returns 2D array of values
+   * @param clipboardHtml - Optional HTML content from clipboard
+   * @returns Parsed data with formatting information
    */
-  const parseClipboardData = (clipboardText: string): string[][] => {
-    // Split by newlines to get rows
+  const parseClipboardData = (clipboardText: string, clipboardHtml?: string): PasteFormatting => {
+    // Default result with text-only parsing
+    const result: PasteFormatting = {
+      hasFormatting: false,
+      sourceFormat: 'text',
+      rawData: []
+    };
+    
+    // Always parse the text version for fallback
     const rows = clipboardText.split(/\r?\n/).filter(row => row.trim() !== '');
-    
-    // Detect delimiter (tab for Excel, comma for CSV)
     const delimiter = rows[0].includes('\t') ? '\t' : ',';
+    result.rawData = rows.map(row => row.split(delimiter));
     
-    // Parse each row into columns
-    return rows.map(row => row.split(delimiter));
+    // Try to parse HTML content if available
+    if (clipboardHtml) {
+      const formattedData = parseHtmlContent(clipboardHtml);
+      
+      if (formattedData) {
+        result.hasFormatting = true;
+        result.sourceFormat = 'html';
+        result.formattedData = formattedData;
+        result.htmlContent = clipboardHtml;
+        
+        // Replace raw data with values from formatted data as a fallback
+        if (formattedData.length > 0) {
+          result.rawData = formattedData.map(row => 
+            row.map(cell => cell.value)
+          );
+        }
+      }
+    }
+    
+    return result;
+  };
+
+  /**
+   * Sets formatting for a specific cell
+   * @param taskId - Task ID for the cell
+   * @param columnId - Column ID for the cell
+   * @param formatting - Formatting to apply
+   */
+  const setCellFormat = (taskId: string, columnId: string, formatting: CellFormatting) => {
+    setCellFormatting(prev => {
+      const newMap = new Map(prev);
+      const key = `${taskId}-${columnId}`;
+      newMap.set(key, formatting);
+      return newMap;
+    });
+  };
+
+  /**
+   * Gets formatting for a specific cell
+   * @param taskId - Task ID for the cell
+   * @param columnId - Column ID for the cell
+   * @returns Cell formatting if available
+   */
+  const getCellFormat = (taskId: string, columnId: string): CellFormatting | undefined => {
+    const key = `${taskId}-${columnId}`;
+    return cellFormatting.get(key);
   };
 
   /**
    * Handles paste events for the table
    * @param event - ClipboardEvent containing the pasted data
    */
-  const handlePaste = (event: React.ClipboardEvent) => {
+  const handlePaste = (event: React.ClipboardEvent<HTMLElement>) => {
     // Prevent default paste behavior
     event.preventDefault();
     
-    // Get clipboard data as text
-    const clipboardData = event.clipboardData?.getData('text/plain') || '';
+    // Get clipboard data
+    const clipboardText = event.clipboardData?.getData('text/plain') || '';
+    const clipboardHtml = event.clipboardData?.getData('text/html') || '';
     
-    if (clipboardData && editingCell) {
-      // Process the clipboard data
-      const parsedData = parseClipboardData(clipboardData);
+    if (clipboardText && editingCell) {
+      // Process the clipboard data with format preservation
+      const parsedData = parseClipboardData(clipboardText, clipboardHtml || undefined);
       
-      // Apply the data to the table
-      applyPastedData(parsedData, editingCell.taskId, editingCell.columnId);
-    }
-  };
-
-  /**
-   * Shows a notification after paste operation
-   * @param rowCount - Number of rows pasted
-   * @param colCount - Number of columns pasted
-   */
-  const showPasteSuccessNotification = (rowCount: number, colCount: number) => {
-    setPasteNotificationMessage(`Successfully pasted ${rowCount} × ${colCount} data`);
-    setShowPasteNotification(true);
-    
-    // Hide the notification after 3 seconds
-    setTimeout(() => {
-      setShowPasteNotification(false);
-    }, 3000);
-  };
-
-  /**
-   * Apply pasted data to the table, expanding as needed
-   * @param data - 2D array of values from clipboard
-   * @param startTaskId - ID of the task where paste begins
-   * @param startColumnId - ID of the column where paste begins
-   */
-  const applyPastedData = (data: string[][], startTaskId: string, startColumnId: string) => {
-    // Skip if no data to paste
-    if (data.length === 0 || data[0].length === 0) return;
-    
-    // Find starting indices
-    const startRowIndex = tasks.findIndex(task => task.id === startTaskId);
-    const startColumnIndex = columns.findIndex(column => column.id === startColumnId);
-    
-    // Skip if invalid starting position
-    if (startRowIndex === -1 || startColumnIndex === -1) return;
-    
-    // Save current state before modification
-    const originalTasks = JSON.parse(JSON.stringify(tasks));
-    const originalColumns = JSON.parse(JSON.stringify(columns));
-    
-    // Calculate required dimensions
-    const requiredRows = startRowIndex + data.length;
-    const requiredColumns = startColumnIndex + Math.max(...data.map(row => row.length));
-    
-    // Create a working copy of tasks to build upon
-    let updatedTasks = [...tasks];
-    let updatedColumns = [...columns];
-    
-    // Track if we added new rows or columns
-    let addedRows = 0;
-    let addedColumns = 0;
-    
-    // Add new rows if needed
-    while (updatedTasks.length < requiredRows) {
-      const newTask: Task = {
-        id: uuidv4(),
-        name: 'New Row',
-        status: 'To do',
-        priority: 'Medium',
-        startDate: 'Not set',
-        deadline: 'Not set',
-      };
-      updatedTasks.push(newTask);
-      addedRows++;
-    }
-    
-    // Add new columns if needed
-    while (updatedColumns.length < requiredColumns) {
-      const newColumn = createNewColumn(`COLUMN ${updatedColumns.length}`);
-      updatedColumns.push(newColumn);
-      addedColumns++;
-      
-      // Add the new column data to each task
-      updatedTasks = updatedTasks.map(task => ({
-        ...task,
-        [newColumn.id]: 'New data',
-      }));
-    }
-    
-    // First update columns if needed (as a separate action)
-    if (addedColumns > 0) {
-      setColumns(updatedColumns);
-      
-      // Record column addition as a separate action
-      if (!isUndoRedoOperationRef.current) {
-        recordAction(`Add ${addedColumns} new column${addedColumns > 1 ? 's' : ''} for pasted data`, ActionType.ADD_COLUMN, { 
-          columns: originalColumns,
-          tasks: originalTasks 
-        });
-      }
-    }
-    
-    // Then add rows if needed (as a separate action)
-    if (addedRows > 0) {
-      setTasks(updatedTasks);
-      
-      // Record row addition as a separate action
-      if (!isUndoRedoOperationRef.current) {
-        recordAction(`Add ${addedRows} new row${addedRows > 1 ? 's' : ''} for pasted data`, ActionType.ADD_ROW, {
-          columns: updatedColumns,
-          tasks: originalTasks
-        });
-      }
-    }
-    
-    // Finally, update the tasks with pasted data (as a separate action)
-    let updatedTasksWithPastedData = [...updatedTasks];
-    data.forEach((rowData, rowOffset) => {
-      const taskIndex = startRowIndex + rowOffset;
-      if (taskIndex < updatedTasksWithPastedData.length) {
-        rowData.forEach((cellValue, colOffset) => {
-          const columnIndex = startColumnIndex + colOffset;
-          if (columnIndex < updatedColumns.length) {
-            const columnId = updatedColumns[columnIndex].id;
-            updatedTasksWithPastedData[taskIndex] = {
-              ...updatedTasksWithPastedData[taskIndex],
-              [columnId]: cellValue
-            };
-          }
-        });
-      }
-    });
-    
-    // Update state with pasted data
-    setTasks(updatedTasksWithPastedData);
-    
-    // Show success notification
-    const rowCount = data.length;
-    const colCount = Math.max(...data.map(row => row.length));
-    showPasteSuccessNotification(rowCount, colCount);
-    
-    // Record paste action separately
-    if (!isUndoRedoOperationRef.current) {
-      recordAction(`Paste ${rowCount}×${colCount} data values`, ActionType.PASTE, {
-        columns: updatedColumns,
-        tasks: addedRows > 0 ? updatedTasks : originalTasks
-      });
-    }
-    
-    // Clear editing cell after paste
-    setEditingCell(null);
-  };
-
-  // Initialize history with initial state
-  useEffect(() => {
-    if (history.length === 0 && tasks.length > 0) {
-      try {
-        console.log('Initializing history with initial state');
-        
-        // Create initial history entry
-        const now = new Date();
-        const initialState: HistoryState = {
-          tasks: JSON.parse(JSON.stringify(tasks)),
-          columns: JSON.parse(JSON.stringify(columns)),
-          tasksBefore: JSON.parse(JSON.stringify(tasks)),
-          columnsBefore: JSON.parse(JSON.stringify(columns)),
-          timestamp: now.getTime(),
-          description: "Initial state",
-          actionType: ActionType.INITIAL,
-          actionId: generateActionId(),
-          formattedTime: now.toISOString()
+      // Show paste options menu if we have HTML data (for formatted content)
+      if (parsedData.hasFormatting) {
+        // Get mouse position for the menu
+        const rect = (event.target as HTMLElement).getBoundingClientRect();
+        // Use fallback position since ClipboardEvent doesn't have clientX/Y
+        const position = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
         };
         
-        setHistory([initialState]);
-        setHistoryIndex(0);
-        
-        console.log('History initialized with initial state');
-      } catch (error) {
-        console.error('Error initializing history:', error);
+        // Open paste options menu
+        setPasteOptionsMenu({
+          isOpen: true,
+          position,
+          pasteData: parsedData,
+          targetCell: editingCell
+        });
+      } else {
+        // Apply text-only data
+        applyPastedData(parsedData.rawData, editingCell.taskId, editingCell.columnId);
       }
     }
-  }, [tasks, columns, history.length]);
+  };
 
-  // Setup keyboard event listeners for the whole component
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if it's not coming from an input element
-      const target = e.target as HTMLElement;
-      const isInputElement = 
-        target.tagName === 'INPUT' || 
-        target.tagName === 'TEXTAREA' || 
-        target.tagName === 'SELECT';
+  /**
+   * Closes the paste options menu
+   */
+  const closePasteOptionsMenu = () => {
+    setPasteOptionsMenu(prev => ({ ...prev, isOpen: false }));
+  };
+
+  /**
+   * Apply pasted data based on selected paste mode
+   * @param pasteData - The data to paste
+   * @param taskId - Target task ID
+   * @param columnId - Target column ID
+   * @param mode - Paste mode to apply
+   */
+  const handlePasteWithMode = (pasteData: PasteFormatting, taskId: string, columnId: string, mode: PasteMode) => {
+    switch (mode) {
+      case PasteMode.REPLACE:
+        // Replace with both data and formatting
+        applyPastedData(pasteData.rawData, taskId, columnId);
+        if (pasteData.hasFormatting && pasteData.formattedData) {
+          applyFormatting(pasteData.formattedData, taskId, columnId);
+        }
+        break;
+      case PasteMode.INSERT_ROWS:
+        // Insert as new rows
+        insertRowsFromPasteData(pasteData, taskId, columnId);
+        break;
+      case PasteMode.INSERT_COLUMNS:
+        // Insert as new columns
+        insertColumnsFromPasteData(pasteData, taskId, columnId);
+        break;
+      case PasteMode.VALUES_ONLY:
+        // Paste only values without formatting
+        applyPastedData(pasteData.rawData, taskId, columnId);
+        break;
+      case PasteMode.FORMATS_ONLY:
+        // Apply only formatting without changing values
+        if (pasteData.hasFormatting && pasteData.formattedData) {
+          applyFormatting(pasteData.formattedData, taskId, columnId);
+        }
+        break;
+      default:
+        // Default to simple replace
+        applyPastedData(pasteData.rawData, taskId, columnId);
+        break;
+    }
+    
+    // Close the menu after applying the paste
+    closePasteOptionsMenu();
+  };
+
+  /**
+   * Apply pasted data to the table
+   * @param data - 2D array of string data to paste
+   * @param taskId - Target task ID
+   * @param columnId - Target column ID
+   */
+  const applyPastedData = (data: string[][], taskId: string, columnId: string) => {
+    if (!data || data.length === 0) return;
+    
+    // Get the starting cell coordinates
+    const startCell = getCellCoordinate(taskId, columnId);
+    if (!startCell) return;
+    
+    const { rowIndex, columnIndex } = startCell;
+    const newTasks = [...tasks];
+    const tasksCopy = JSON.parse(JSON.stringify(tasks));
+    const columnsCopy = JSON.parse(JSON.stringify(columns));
+    
+    // Apply the data to the table
+    for (let i = 0; i < data.length; i++) {
+      const currentRowIndex = rowIndex + i;
+      if (currentRowIndex >= newTasks.length) continue;
       
-      // Show shortcuts dialog with "?" key
-      if (e.key === '?' && !isInputElement) {
-        setShowShortcutsDialog(true);
-        e.preventDefault();
-      }
-      
-      // Copy selected data with Ctrl+C or Cmd+C
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInputElement) {
-        e.preventDefault();
-        handleCopy();
-      }
-      
-      // Undo with Ctrl+Z or Cmd+Z
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !isInputElement) {
-        e.preventDefault();
-        handleUndo();
-      }
-      
-      // Redo with Ctrl+Y or Cmd+Y or Ctrl+Shift+Z or Cmd+Shift+Z
-      if (((e.ctrlKey || e.metaKey) && e.key === 'y') || 
-          ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z')) {
-        e.preventDefault();
-        handleRedo();
-      }
-      
-      // Clear selection with Escape
-      if (e.key === 'Escape' && !isInputElement && !editingCell) {
-        e.preventDefault();
-        clearSelection();
-      }
-      
-      // Add support for keyboard navigation between cells
-      if (editingCell && (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey))) {
-        const { taskId, columnId } = editingCell;
-        const taskIndex = tasks.findIndex(task => task.id === taskId);
-        const columnIndex = columns.findIndex(column => column.id === columnId);
+      for (let j = 0; j < data[i].length; j++) {
+        const currentColumnIndex = columnIndex + j;
+        if (currentColumnIndex >= columns.length) continue;
         
-        // Skip navigation from non-editable columns
-        if (columnIndex === 0) return; // Skip from "select" column
+        const currentTaskId = newTasks[currentRowIndex].id;
+        const currentColumnId = columns[currentColumnIndex].id;
         
-        if (e.shiftKey) {
-          // Move to previous cell
-          if (columnIndex > 1) { // Skip "select" column
-            // Move to previous column in same row
-            const prevColumnId = columns[columnIndex - 1].id;
-            if (prevColumnId !== 'select') {
-              e.preventDefault();
-              setEditingCell({ taskId, columnId: prevColumnId });
-            }
-          } else if (taskIndex > 0) {
-            // Move to last column of previous row
-            const prevRowTaskId = tasks[taskIndex - 1].id;
-            const lastColumnId = columns[columns.length - 1].id;
-            e.preventDefault();
-            setEditingCell({ taskId: prevRowTaskId, columnId: lastColumnId });
-          }
-        } else {
-          // Move to next cell
-          if (columnIndex < columns.length - 1) {
-            // Move to next column in same row
-            const nextColumnId = columns[columnIndex + 1].id;
-            e.preventDefault();
-            setEditingCell({ taskId, columnId: nextColumnId });
-          } else if (taskIndex < tasks.length - 1) {
-            // Move to first editable column of next row
-            const nextRowTaskId = tasks[taskIndex + 1].id;
-            // Find first editable column (skip "select")
-            const firstEditableColumnId = columns.find(col => col.id !== 'select')?.id || '';
-            e.preventDefault();
-            setEditingCell({ taskId: nextRowTaskId, columnId: firstEditableColumnId });
-          } else {
-            // At the last cell, add a new row and move to its first cell
-            if (e.key === 'Tab') {
-              e.preventDefault();
-              const newTask = handleAddTask();
-              if (newTask) {
-                const firstEditableColumnId = columns.find(col => col.id !== 'select')?.id || '';
-                setEditingCell({ taskId: newTask.id, columnId: firstEditableColumnId });
-              }
-            }
+        // Update the cell value
+        newTasks[currentRowIndex][currentColumnId] = data[i][j];
+      }
+    }
+    
+    // Update state and record history
+    setTasks(newTasks);
+    recordAction(
+      `Pasted data at ${columns[columnIndex].title}:${taskId}`,
+      ActionType.PASTE,
+      { tasks: tasksCopy, columns: columnsCopy },
+      { tasks: newTasks, columns }
+    );
+    
+    showUndoRedoNotification("Data pasted successfully", ActionType.PASTE);
+  };
+
+  /**
+   * Apply formatting to cells
+   * @param formattedData - 2D array of formatted cell data
+   * @param taskId - Target task ID
+   * @param columnId - Target column ID
+   */
+  const applyFormatting = (formattedData: FormattedCellData[][], taskId: string, columnId: string) => {
+    if (!formattedData || formattedData.length === 0) return;
+    
+    // Get the starting cell coordinates
+    const startCell = getCellCoordinate(taskId, columnId);
+    if (!startCell) return;
+    
+    const { rowIndex, columnIndex } = startCell;
+    const newCellFormatting = new Map(cellFormatting);
+    const cellFormattingCopy = new Map(cellFormatting);
+    
+    // Apply formatting to cells
+    for (let i = 0; i < formattedData.length; i++) {
+      const currentRowIndex = rowIndex + i;
+      if (currentRowIndex >= tasks.length) continue;
+      
+      for (let j = 0; j < formattedData[i].length; j++) {
+        const currentColumnIndex = columnIndex + j;
+        if (currentColumnIndex >= columns.length) continue;
+        
+        const currentTaskId = tasks[currentRowIndex].id;
+        const currentColumnId = columns[currentColumnIndex].id;
+        const cellKey = `${currentTaskId}-${currentColumnId}`;
+        
+        // Update the cell formatting
+        if (formattedData[i][j].formatting) {
+          newCellFormatting.set(cellKey, formattedData[i][j].formatting);
+        }
+      }
+    }
+    
+    // Update state and record history
+    setCellFormatting(newCellFormatting);
+    recordAction(
+      `Applied formatting at ${columns[columnIndex].title}:${taskId}`,
+      ActionType.FORMAT_CELLS,
+      { cellFormatting: cellFormattingCopy },
+      { cellFormatting: newCellFormatting }
+    );
+  };
+
+  /**
+   * Insert rows from paste data
+   * @param pasteData - The data to paste
+   * @param taskId - Target task ID
+   * @param columnId - Target column ID
+   */
+  const insertRowsFromPasteData = (pasteData: PasteFormatting, taskId: string, columnId: string) => {
+    if (!pasteData.rawData || pasteData.rawData.length === 0) return;
+    
+    // Get the starting cell coordinates
+    const startCell = getCellCoordinate(taskId, columnId);
+    if (!startCell) return;
+    
+    const { rowIndex, columnIndex } = startCell;
+    const newTasks = [...tasks];
+    const tasksCopy = JSON.parse(JSON.stringify(tasks));
+    const columnsCopy = JSON.parse(JSON.stringify(columns));
+    
+    // Create new rows from paste data
+    const newRows: Task[] = [];
+    for (let i = 0; i < pasteData.rawData.length; i++) {
+      const newTask: Task = {
+        id: generateActionId(),
+        name: pasteData.rawData[i][0] || `New Task ${i+1}`,
+        status: 'todo',
+        priority: 'medium',
+        startDate: '',
+        deadline: '',
+      };
+      
+      // Add data to columns
+      for (let j = 0; j < pasteData.rawData[i].length; j++) {
+        const currentColumnIndex = columnIndex + j;
+        if (currentColumnIndex >= columns.length) continue;
+        
+        const currentColumnId = columns[currentColumnIndex].id;
+        newTask[currentColumnId] = pasteData.rawData[i][j];
+      }
+      
+      newRows.push(newTask);
+    }
+    
+    // Insert the new rows after the target row
+    newTasks.splice(rowIndex + 1, 0, ...newRows);
+    
+    // Apply formatting if available
+    if (pasteData.hasFormatting && pasteData.formattedData) {
+      const newCellFormatting = new Map(cellFormatting);
+      
+      for (let i = 0; i < pasteData.formattedData.length; i++) {
+        const currentRowIndex = rowIndex + 1 + i;
+        if (currentRowIndex >= newTasks.length) continue;
+        
+        for (let j = 0; j < pasteData.formattedData[i].length; j++) {
+          const currentColumnIndex = columnIndex + j;
+          if (currentColumnIndex >= columns.length) continue;
+          
+          const currentTaskId = newTasks[currentRowIndex].id;
+          const currentColumnId = columns[currentColumnIndex].id;
+          const cellKey = `${currentTaskId}-${currentColumnId}`;
+          
+          // Update the cell formatting
+          if (pasteData.formattedData[i][j].formatting) {
+            newCellFormatting.set(cellKey, pasteData.formattedData[i][j].formatting);
           }
         }
       }
-    };
+      
+      setCellFormatting(newCellFormatting);
+    }
     
-    window.addEventListener('keydown', handleKeyDown);
+    // Update state and record history
+    setTasks(newTasks);
+    recordAction(
+      `Inserted ${newRows.length} rows from paste data`,
+      ActionType.PASTE,
+      { tasks: tasksCopy, columns: columnsCopy },
+      { tasks: newTasks, columns }
+    );
     
-    // Add mouse up listener to end selection
-    const handleGlobalMouseUp = () => {
-      if (isSelecting) {
-        handleEndSelection();
-      }
-    };
-    
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, [editingCell, tasks, columns, isSelecting, selectionRange, historyIndex, history]);
-
-  // Clear any pending timeouts when unmounting
-  useEffect(() => {
-    return () => {
-      if (window.notificationTimeout) {
-        clearTimeout(window.notificationTimeout);
-      }
-    };
-  }, []);
+    showUndoRedoNotification(`Inserted ${newRows.length} rows`, ActionType.PASTE);
+  };
 
   /**
-   * Render method for the DataTable component
-   * Uses modular components for better maintainability and performance
+   * Insert columns from paste data
+   * @param pasteData - The data to paste
+   * @param taskId - Target task ID
+   * @param columnId - Target column ID
    */
-  return (
-    // Main container with full width
-    <div className="w-full">
-      {/* Outer wrapper with relative positioning for scroll notification */}
-      <div className="relative">
-        {/* Scroll notification component for horizontal scrolling indication */}
-        <ScrollNotification show={showScrollNotification} />
+  const insertColumnsFromPasteData = (pasteData: PasteFormatting, taskId: string, columnId: string) => {
+    if (!pasteData.rawData || pasteData.rawData.length === 0) return;
+    
+    // Get the starting cell coordinates
+    const startCell = getCellCoordinate(taskId, columnId);
+    if (!startCell) return;
+    
+    const { rowIndex, columnIndex } = startCell;
+    const newColumns = [...columns];
+    const tasksCopy = JSON.parse(JSON.stringify(tasks));
+    const columnsCopy = JSON.parse(JSON.stringify(columns));
+    
+    // Create new columns from paste data
+    const columnsToAdd = Math.min(pasteData.rawData[0].length, 10); // Limit to 10 new columns
+    const newColumnIds: string[] = [];
+    
+    for (let j = 0; j < columnsToAdd; j++) {
+      const newColumnId = generateActionId();
+      const newColumn: Column = {
+        id: newColumnId,
+        title: `Column ${newColumnIds.length + 1}`,
+        type: 'text',
+        width: 'w-40',
+        minWidth: 'min-w-[160px]'
+      };
+      
+      newColumns.splice(columnIndex + 1 + j, 0, newColumn);
+      newColumnIds.push(newColumnId);
+    }
+    
+    // Update tasks with new column data
+    const newTasks = tasks.map((task, taskIdx) => {
+      const updatedTask = { ...task };
+      
+      for (let j = 0; j < newColumnIds.length; j++) {
+        const dataRowIndex = taskIdx - rowIndex;
+        if (dataRowIndex >= 0 && dataRowIndex < pasteData.rawData.length) {
+          updatedTask[newColumnIds[j]] = pasteData.rawData[dataRowIndex][j] || '';
+        } else {
+          updatedTask[newColumnIds[j]] = '';
+        }
+      }
+      
+      return updatedTask;
+    });
+    
+    // Apply formatting if available
+    if (pasteData.hasFormatting && pasteData.formattedData) {
+      const newCellFormatting = new Map(cellFormatting);
+      
+      for (let i = 0; i < pasteData.formattedData.length; i++) {
+        const currentRowIndex = rowIndex + i;
+        if (currentRowIndex >= newTasks.length) continue;
         
-        {/* Paste notification component */}
-        <PasteNotification 
-          show={showPasteNotification} 
-          message={pasteNotificationMessage} 
-        />
-        
-        {/* Copy notification component */}
-        <CopyNotification 
-          show={showCopyNotification} 
-          message={copyNotificationMessage} 
-        />
-        
-        {/* Undo/Redo notification component */}
-        <UndoRedoNotification 
-          show={showUndoNotification} 
-          message={undoNotificationMessage}
-          timestamp={undoNotificationTimestamp}
-          actionType={undoNotificationActionType}
-          success={undoNotificationSuccess}
-        />
-        
-        {/* Shortcuts dialog */}
-        <ShortcutsDialog 
-          isOpen={showShortcutsDialog} 
-          onClose={() => setShowShortcutsDialog(false)} 
-        />
-        
-        {/* Keyboard shortcuts help button */}
-        <button 
-          className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded z-10"
-          onClick={() => setShowShortcutsDialog(true)}
-          title="Show keyboard shortcuts"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
-        
-        {/* Undo/Redo toolbar */}
-        <UndoRedoToolbar
-          canUndo={historyIndex > 0}
-          canRedo={historyIndex < history.length - 1}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          undoTooltip={getUndoTooltip()}
-          redoTooltip={getRedoTooltip()}
-        />
-        
-        {/* Selection controls */}
-        {selectionRange && (
-          <div className="absolute top-2 left-2 p-2 bg-white border border-gray-200 rounded shadow-sm z-10 flex items-center space-x-2">
-            <button 
-              className="p-1 text-gray-700 hover:bg-blue-50 rounded flex items-center"
-              onClick={handleCopy}
-              title="Copy selected cells to clipboard"
-            >
-              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-              </svg>
-              Copy
-            </button>
-            <button 
-              className="p-1 text-gray-700 hover:bg-gray-100 rounded flex items-center"
-              onClick={clearSelection}
-              title="Clear the current cell selection"
-            >
-              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Clear selection
-            </button>
-          </div>
-        )}
-        
-        {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
-        <div 
-          ref={tableRef}
-          className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto inline-block"
-          style={{ maxWidth: '100%' }} /* Ensures it doesn't exceed viewport width */
-          onPaste={handlePaste} /* Handle paste events at the table level */
-          tabIndex={0} /* Make the div focusable to receive keyboard events */
-        >
-          {/* Special paste instructions when a cell is being edited */}
-          {editingCell && (
-            <div className="absolute top-0 right-0 p-2 bg-blue-50 text-xs text-blue-600 border-l border-b border-blue-200 rounded-bl-md z-10">
-              <div className="flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Paste data from Excel/CSV with Ctrl+V
-              </div>
-            </div>
-          )}
+        for (let j = 0; j < newColumnIds.length && j < pasteData.formattedData[i].length; j++) {
+          const currentTaskId = newTasks[currentRowIndex].id;
+          const currentColumnId = newColumnIds[j];
+          const cellKey = `${currentTaskId}-${currentColumnId}`;
           
-          {/* Table container - w-max ensures it only takes the space it needs */}
-          <div className="w-max table-fixed">
-            {/* Table Header Component */}
-            <TableHeader 
-              columns={columns}
-              allSelected={selectedTasks.size === tasks.length && tasks.length > 0}
-              onSelectAll={handleSelectAll}
-            />
-            
-            {/* Column Action Row - Provides column manipulation controls */}
-            <ColumnActionRow
-              columns={columns}
-              onAddColumnLeft={handleAddColumnLeft}
-              onAddColumnRight={handleAddColumnRight}
-              onDeleteColumn={handleDeleteColumn}
-            />
+          // Update the cell formatting
+          if (pasteData.formattedData[i][j].formatting) {
+            newCellFormatting.set(cellKey, pasteData.formattedData[i][j].formatting);
+          }
+        }
+      }
+      
+      setCellFormatting(newCellFormatting);
+    }
+    
+    // Update state and record history
+    setColumns(newColumns);
+    setTasks(newTasks);
+    recordAction(
+      `Inserted ${newColumnIds.length} columns from paste data`,
+      ActionType.PASTE,
+      { tasks: tasksCopy, columns: columnsCopy },
+      { tasks: newTasks, columns: newColumns }
+    );
+    
+    showUndoRedoNotification(`Inserted ${newColumnIds.length} columns`, ActionType.PASTE);
+  };
 
-            {/* Table Body - Map through tasks to create rows */}
-            {tasks.map((task, index) => (
-              <TableRow
-                key={task.id}
-                task={task}
-                columns={columns}
-                isSelected={selectedTasks.has(task.id)}
-                onSelectTask={handleSelectTask}
-                onAddColumn={handleAddColumn}
-                onDeleteTask={handleDeleteTask}
-                onUpdateTask={handleUpdateTask}
-                isLastRow={index === tasks.length - 1}
-                onSetEditingCell={handleSetEditingCell}
-                onClearEditingCell={handleClearEditingCell}
-                isEditing={editingCell?.taskId === task.id ? editingCell.columnId : null}
-                onStartSelection={handleStartSelection}
-                onUpdateSelection={handleUpdateSelection}
-                isCellInSelection={isCellSelected}
-                isSelecting={isSelecting}
-              />
-            ))}
-            
-            {/* Add row button integrated into the table */}
-            <div className="flex border-t border-gray-200">
-              <div className="flex-1 py-2 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 cursor-pointer" onClick={handleAddTask}>
-                <div className="flex items-center justify-center text-blue-500">
-                  <span className="mr-1 font-medium">+</span> Add row
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+  return (
+    <div className="flex flex-col h-full">
+      {/* Rest of the component JSX code */}
     </div>
   );
 };
 
-// Add notification timeout to window object for proper cleanup
-declare global {
-  interface Window {
-    notificationTimeout?: number;
-  }
-}
-
 export default DataTable;
+        

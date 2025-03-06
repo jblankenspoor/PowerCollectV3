@@ -102,8 +102,10 @@ export interface FormattedCellData {
 /**
  * History state entry for undo/redo functionality
  * @interface HistoryState
- * @property {Task[]} tasks - Snapshot of tasks state
- * @property {Column[]} columns - Snapshot of columns state
+ * @property {Task[]} tasks - Snapshot of tasks state after the action
+ * @property {Column[]} columns - Snapshot of columns state after the action
+ * @property {Task[]} tasksBefore - Snapshot of tasks state before the action
+ * @property {Column[]} columnsBefore - Snapshot of columns state before the action
  * @property {number} timestamp - When the action occurred
  * @property {string} description - Description of the action
  * @property {string} actionType - Type of action that was performed
@@ -113,6 +115,8 @@ export interface FormattedCellData {
 export interface HistoryState {
   tasks: Task[];
   columns: Column[];
+  tasksBefore?: Task[];
+  columnsBefore?: Column[];
   timestamp: number;
   description: string;
   actionType?: string;

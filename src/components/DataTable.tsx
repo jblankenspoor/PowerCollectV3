@@ -282,6 +282,17 @@ const DataTable: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   
+  // State for columns with fixed width settings
+  const [columns, setColumns] = useState<Column[]>([
+    // Select column with sufficient width for 'Deselect All' button
+    { id: 'select', title: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
+    { id: 'name', title: 'NAME', type: 'text', width: 'w-48', minWidth: 'min-w-[192px]' },
+    { id: 'status', title: 'STATUS', type: 'status', width: 'w-36', minWidth: 'min-w-[144px]' },
+    { id: 'priority', title: 'PRIORITY', type: 'priority', width: 'w-36', minWidth: 'min-w-[144px]' },
+    { id: 'startDate', title: 'START DATE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
+    { id: 'deadline', title: 'DEADLINE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
+  ]);
+  
   // State for tracking the cell being edited 
   const [editingCell, setEditingCell] = useState<CellIdentifier | null>(null);
   
@@ -310,33 +321,21 @@ const DataTable: React.FC = () => {
   // Flag to prevent history recording while performing undo/redo
   const isUndoRedoOperationRef = useRef(false);
   
-  // Add a ref to track when an action is being recorded
-  const isRecordingActionRef = useRef(false);
+  // Store the current tasks and columns for proper history recording
+  const tasksRef = useRef<Task[]>([]);
+  const columnsRef = useRef<Column[]>([]);
   
-  // Track the timeouts used for batch operations
-  const batchTimeoutsRef = useRef<number[]>([]);
+  // Update refs when state changes
+  useEffect(() => {
+    tasksRef.current = tasks;
+    columnsRef.current = columns;
+  }, [tasks, columns]);
   
   // Generate a unique action ID for history entries
   const generateActionId = () => {
-    return Date.now().toString() + '-' + Math.random().toString(36).substring(2, 15);
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}-${Math.random().toString(36).substring(2, 15)}`;
   };
 
-  /**
-   * State for columns with fixed width settings
-   * - Each column has a fixed width to ensure consistency across the table
-   * - The Select column is centered while all other columns are left-aligned
-   * - Width values are chosen to accommodate the content in each column
-   */
-  const [columns, setColumns] = useState<Column[]>([
-    // Select column with sufficient width for 'Deselect All' button
-    { id: 'select', title: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
-    { id: 'name', title: 'NAME', type: 'text', width: 'w-48', minWidth: 'min-w-[192px]' },
-    { id: 'status', title: 'STATUS', type: 'status', width: 'w-36', minWidth: 'min-w-[144px]' },
-    { id: 'priority', title: 'PRIORITY', type: 'priority', width: 'w-36', minWidth: 'min-w-[144px]' },
-    { id: 'startDate', title: 'START DATE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
-    { id: 'deadline', title: 'DEADLINE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
-  ]);
-  
   // Reference for the table container
   const tableRef = useRef<HTMLDivElement>(null);
   
@@ -350,66 +349,60 @@ const DataTable: React.FC = () => {
    * Records an action to the history stack with unique timestamp
    * @param description - Description of the action
    * @param type - Type of action performed
-   * @param customState - Optional custom state to save (defaults to current state)
+   * @param beforeState - Optional state before the action
+   * @param afterState - Optional state after the action
    */
-  const recordAction = (description: string, type: ActionType, customState?: { tasks?: Task[], columns?: Column[] }) => {
+  const recordAction = (
+    description: string, 
+    type: ActionType, 
+    beforeState?: { tasks?: Task[], columns?: Column[] },
+    afterState?: { tasks?: Task[], columns?: Column[] }
+  ) => {
     // Skip recording if we're in the middle of an undo/redo operation
     if (isUndoRedoOperationRef.current) return;
     
     try {
-      // Set flag to prevent nested recording
-      isRecordingActionRef.current = true;
-      
-      // Create unique timestamp with millisecond precision
+      // Generate timestamp with high precision
       const now = new Date();
-      const timestamp = now.getTime() + Math.random();
-      const formattedTime = now.toISOString();
       const actionId = generateActionId();
+      const formattedTime = now.toISOString();
       
-      // Create history entry with provided or current state
+      console.log(`Recording action: ${description} [${type}] with ID ${actionId}`);
+      
+      // Determine the states to save
+      const tasksBeforeAction = beforeState?.tasks || tasksRef.current;
+      const columnsBeforeAction = beforeState?.columns || columnsRef.current;
+      
+      const tasksAfterAction = afterState?.tasks || tasks;
+      const columnsAfterAction = afterState?.columns || columns;
+      
+      // Create new history entry
       const newEntry: HistoryState = {
-        tasks: customState?.tasks ? JSON.parse(JSON.stringify(customState.tasks)) : JSON.parse(JSON.stringify(tasks)),
-        columns: customState?.columns ? JSON.parse(JSON.stringify(customState.columns)) : JSON.parse(JSON.stringify(columns)),
-        timestamp,
+        tasks: JSON.parse(JSON.stringify(tasksAfterAction)),
+        columns: JSON.parse(JSON.stringify(columnsAfterAction)),
+        tasksBefore: JSON.parse(JSON.stringify(tasksBeforeAction)),
+        columnsBefore: JSON.parse(JSON.stringify(columnsBeforeAction)),
+        timestamp: now.getTime(),
         description,
         actionType: type,
         actionId,
         formattedTime
       };
       
-      // Clear any previous timeouts to prevent race conditions
-      batchTimeoutsRef.current.forEach(id => window.clearTimeout(id));
-      batchTimeoutsRef.current = [];
+      // Update history state immediately using functional updates
+      setHistory(prevHistory => {
+        // Get only the history up to the current index
+        const newHistory = prevHistory.slice(0, historyIndex + 1);
+        return [...newHistory, newEntry];
+      });
       
-      // Use setTimeout to ensure each action gets a unique entry
-      // This ensures actions are recorded individually even if they happen in quick succession
-      const timeoutId = window.setTimeout(() => {
-        // Truncate future history if we're not at the latest state
-        setHistory(prev => {
-          const newHistory = prev.slice(0, historyIndex + 1);
-          newHistory.push(newEntry);
-          return newHistory;
-        });
-        
-        setHistoryIndex(prev => prev + 1);
-        
-        // Log for debugging
-        console.log(`Recorded action: ${description} [${type}] at ${formattedTime} with ID ${actionId}`);
-        
-        // Reset the flag
-        isRecordingActionRef.current = false;
-        
-        // Remove this timeout from the tracking array
-        batchTimeoutsRef.current = batchTimeoutsRef.current.filter(id => id !== timeoutId);
-      }, 50); // Slight delay to ensure sequential processing
+      // Update the history index
+      setHistoryIndex(prevIndex => prevIndex + 1);
       
-      // Track the timeout ID
-      batchTimeoutsRef.current.push(timeoutId);
+      // Log for debugging
+      console.log(`Recorded action: ${description} [${type}] at ${formattedTime} with ID ${actionId}`);
     } catch (error) {
       console.error('Error recording action:', error);
-      isRecordingActionRef.current = false;
-      
-      // Show error notification
       showUndoRedoNotification(`Error recording action: ${description}`, 'ERROR', false);
     }
   };
@@ -422,7 +415,17 @@ const DataTable: React.FC = () => {
    */
   const showUndoRedoNotification = (message: string, actionType?: string, success: boolean = true) => {
     try {
-      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+      const timestamp = new Date().toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false 
+      });
+      
+      // Cancel any existing notification hide timeouts
+      if (window.notificationTimeout) {
+        clearTimeout(window.notificationTimeout);
+      }
       
       setUndoNotificationMessage(message);
       setUndoNotificationTimestamp(timestamp);
@@ -431,7 +434,7 @@ const DataTable: React.FC = () => {
       setShowUndoNotification(true);
       
       // Hide the notification after 4 seconds
-      setTimeout(() => {
+      window.notificationTimeout = setTimeout(() => {
         setShowUndoNotification(false);
       }, 4000);
     } catch (error) {
@@ -445,7 +448,10 @@ const DataTable: React.FC = () => {
   const getUndoTooltip = () => {
     if (historyIndex <= 0) return "Nothing to undo";
     const prevAction = history[historyIndex];
-    return `Undo: ${prevAction.description} (${prevAction.formattedTime?.slice(11, 19) || ''})`;
+    const time = prevAction.formattedTime ? 
+      new Date(prevAction.formattedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) :
+      '';
+    return `Undo: ${prevAction.description} (${time})`;
   };
 
   /**
@@ -454,7 +460,10 @@ const DataTable: React.FC = () => {
   const getRedoTooltip = () => {
     if (historyIndex >= history.length - 1) return "Nothing to redo";
     const nextAction = history[historyIndex + 1];
-    return `Redo: ${nextAction.description} (${nextAction.formattedTime?.slice(11, 19) || ''})`;
+    const time = nextAction.formattedTime ? 
+      new Date(nextAction.formattedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) :
+      '';
+    return `Redo: ${nextAction.description} (${time})`;
   };
 
   /**
@@ -463,17 +472,29 @@ const DataTable: React.FC = () => {
   const handleUndo = () => {
     if (historyIndex > 0) {
       try {
+        // Set flag to prevent recording during undo
         isUndoRedoOperationRef.current = true;
         
-        const prevState = history[historyIndex - 1];
-        setTasks(JSON.parse(JSON.stringify(prevState.tasks))); // Deep copy
-        setColumns(JSON.parse(JSON.stringify(prevState.columns))); // Deep copy
-        setHistoryIndex(historyIndex - 1);
+        // Get the previous state
+        const prevIndex = historyIndex - 1;
+        const prevState = history[prevIndex];
+        const currentState = history[historyIndex];
+        
+        console.log(`Undoing action: ${currentState.description} [${currentState.actionType}] with ID ${currentState.actionId}`);
+        
+        // Apply the previous state
+        const prevTasks = JSON.parse(JSON.stringify(prevState.tasks));
+        const prevColumns = JSON.parse(JSON.stringify(prevState.columns));
+        
+        // Update state
+        setTasks(prevTasks);
+        setColumns(prevColumns);
+        setHistoryIndex(prevIndex);
         
         // Show notification with timestamp and action type
         showUndoRedoNotification(
-          `Undone: ${prevState.description}`, 
-          prevState.actionType,
+          `Undone: ${currentState.description}`, 
+          currentState.actionType,
           true
         );
         
@@ -484,6 +505,8 @@ const DataTable: React.FC = () => {
         setTimeout(() => {
           isUndoRedoOperationRef.current = false;
         }, 50);
+        
+        console.log(`Undo complete for: ${currentState.description} [${currentState.actionType}]`);
       } catch (error) {
         console.error('Error performing undo:', error);
         isUndoRedoOperationRef.current = false;
@@ -500,12 +523,23 @@ const DataTable: React.FC = () => {
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
       try {
+        // Set flag to prevent recording during redo
         isUndoRedoOperationRef.current = true;
         
-        const nextState = history[historyIndex + 1];
-        setTasks(JSON.parse(JSON.stringify(nextState.tasks))); // Deep copy
-        setColumns(JSON.parse(JSON.stringify(nextState.columns))); // Deep copy
-        setHistoryIndex(historyIndex + 1);
+        // Get the next state
+        const nextIndex = historyIndex + 1;
+        const nextState = history[nextIndex];
+        
+        console.log(`Redoing action: ${nextState.description} [${nextState.actionType}] with ID ${nextState.actionId}`);
+        
+        // Apply the next state
+        const nextTasks = JSON.parse(JSON.stringify(nextState.tasks));
+        const nextColumns = JSON.parse(JSON.stringify(nextState.columns));
+        
+        // Update state
+        setTasks(nextTasks);
+        setColumns(nextColumns);
+        setHistoryIndex(nextIndex);
         
         // Show notification with timestamp and action type
         showUndoRedoNotification(
@@ -521,6 +555,8 @@ const DataTable: React.FC = () => {
         setTimeout(() => {
           isUndoRedoOperationRef.current = false;
         }, 50);
+        
+        console.log(`Redo complete for: ${nextState.description} [${nextState.actionType}]`);
       } catch (error) {
         console.error('Error performing redo:', error);
         isUndoRedoOperationRef.current = false;
@@ -545,6 +581,10 @@ const DataTable: React.FC = () => {
     // Skip if value hasn't changed
     if (oldValue === value) return;
     
+    // Save the state before the update
+    const tasksBefore = [...tasks];
+    
+    // Update the state
     setTasks(prev => prev.map(task => {
       if (task.id === taskId) {
         return {
@@ -555,7 +595,7 @@ const DataTable: React.FC = () => {
       return task;
     }));
     
-    // Record action in history
+    // Record action in history after the update
     if (recordHistory && !isUndoRedoOperationRef.current && oldTask) {
       // Get column title for better description
       const column = columns.find(col => col.id === columnId);
@@ -563,13 +603,15 @@ const DataTable: React.FC = () => {
       
       // Get task name for better description
       const taskName = oldTask ? oldTask.name : taskId;
-
-      // Create updated task for history
-      const updatedTask = { ...oldTask, [columnId]: value };
       
-      recordAction(`Edit ${columnTitle} of "${taskName}"`, ActionType.EDIT_CELL, { 
-        tasks: [...tasks.filter(t => t.id !== taskId), updatedTask]
-      });
+      // Wait for state update to complete
+      setTimeout(() => {
+        recordAction(
+          `Edit ${columnTitle} of "${taskName}"`, 
+          ActionType.EDIT_CELL,
+          { tasks: tasksBefore }
+        );
+      }, 0);
     }
   };
 
@@ -1185,13 +1227,17 @@ const DataTable: React.FC = () => {
 
   // Initialize history with initial state
   useEffect(() => {
-    if (history.length === 0) {
+    if (history.length === 0 && tasks.length > 0) {
       try {
+        console.log('Initializing history with initial state');
+        
         // Create initial history entry
         const now = new Date();
         const initialState: HistoryState = {
           tasks: JSON.parse(JSON.stringify(tasks)),
           columns: JSON.parse(JSON.stringify(columns)),
+          tasksBefore: JSON.parse(JSON.stringify(tasks)),
+          columnsBefore: JSON.parse(JSON.stringify(columns)),
           timestamp: now.getTime(),
           description: "Initial state",
           actionType: ActionType.INITIAL,
@@ -1201,11 +1247,13 @@ const DataTable: React.FC = () => {
         
         setHistory([initialState]);
         setHistoryIndex(0);
+        
+        console.log('History initialized with initial state');
       } catch (error) {
         console.error('Error initializing history:', error);
       }
     }
-  }, []);
+  }, [tasks, columns, history.length]);
 
   // Setup keyboard event listeners for the whole component
   useEffect(() => {
@@ -1322,7 +1370,9 @@ const DataTable: React.FC = () => {
   // Clear any pending timeouts when unmounting
   useEffect(() => {
     return () => {
-      batchTimeoutsRef.current.forEach(id => window.clearTimeout(id));
+      if (window.notificationTimeout) {
+        clearTimeout(window.notificationTimeout);
+      }
     };
   }, []);
 
@@ -1485,5 +1535,12 @@ const DataTable: React.FC = () => {
     </div>
   );
 };
+
+// Add notification timeout to window object for proper cleanup
+declare global {
+  interface Window {
+    notificationTimeout?: number;
+  }
+}
 
 export default DataTable;

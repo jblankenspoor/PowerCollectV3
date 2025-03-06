@@ -38,24 +38,24 @@ const initialTasks: Task[] = [
     name: 'Quarterly launch',
     status: 'Done',
     priority: 'Low',
-    startDate: '17 februari 2025',
-    deadline: '20 februari 2025',
+    startDate: '2025-02-17',
+    deadline: '2025-02-20',
   },
   {
     id: uuidv4(),
     name: 'Customer research',
     status: 'In progress',
     priority: 'Medium',
-    startDate: '21 februari 2025',
-    deadline: '24 februari 2025',
+    startDate: '2025-02-21',
+    deadline: '2025-02-24',
   },
   {
     id: uuidv4(),
     name: 'Campaign analysis',
     status: 'To do',
     priority: 'High',
-    startDate: '25 februari 2025',
-    deadline: '28 februari 2025',
+    startDate: '2025-02-25',
+    deadline: '2025-02-28',
   },
 ];
 
@@ -77,7 +77,7 @@ const DataTable: React.FC = () => {
   const [columns, setColumns] = useState<Column[]>([
     // Select column with sufficient width for 'Deselect All' button
     { id: 'select', title: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
-    { id: 'name', title: 'NAME', type: 'name', width: 'w-48', minWidth: 'min-w-[192px]' },
+    { id: 'name', title: 'NAME', type: 'text', width: 'w-48', minWidth: 'min-w-[192px]' },
     { id: 'status', title: 'STATUS', type: 'status', width: 'w-36', minWidth: 'min-w-[144px]' },
     { id: 'priority', title: 'PRIORITY', type: 'priority', width: 'w-36', minWidth: 'min-w-[144px]' },
     { id: 'startDate', title: 'START DATE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
@@ -93,6 +93,24 @@ const DataTable: React.FC = () => {
     tableRef,
     [columns, tasks]
   );
+
+  /**
+   * Updates a task's value for a specific column
+   * @param taskId - The unique identifier of the task
+   * @param columnId - The identifier of the column being updated
+   * @param value - The new value for the cell
+   */
+  const handleUpdateTask = (taskId: string, columnId: string, value: string) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          [columnId]: value
+        };
+      }
+      return task;
+    }));
+  };
 
   /**
    * Handles the selection/deselection of a task
@@ -296,6 +314,7 @@ const DataTable: React.FC = () => {
               onSelectTask={handleSelectTask}
               onAddColumn={handleAddColumn}
               onDeleteTask={handleDeleteTask}
+              onUpdateTask={handleUpdateTask}
             />
           ))}
           

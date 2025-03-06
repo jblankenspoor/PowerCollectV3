@@ -12,6 +12,10 @@ import ActionCell from './ActionCell';
  * @property {Function} onAddColumn - Function to handle adding a column
  * @property {Function} onDeleteTask - Function to handle deleting the task
  * @property {Function} onUpdateTask - Function to handle updating task values
+ * @property {boolean} isLastRow - Whether this is the last row in the table
+ * @property {Function} onSetEditingCell - Function to set which cell is being edited
+ * @property {Function} onClearEditingCell - Function to clear the editing cell state
+ * @property {string|null} isEditing - Column ID if any cell in this row is being edited, null otherwise
  */
 interface TableRowProps {
   task: Task;
@@ -22,6 +26,9 @@ interface TableRowProps {
   onDeleteTask: (taskId: string) => void;
   onUpdateTask: (taskId: string, columnId: string, value: string) => void;
   isLastRow?: boolean;
+  onSetEditingCell?: (taskId: string, columnId: string) => void;
+  onClearEditingCell?: () => void;
+  isEditing?: string | null;
 }
 
 /**
@@ -120,6 +127,7 @@ const CustomStatusDropdown: React.FC<{
  * - Includes checkbox for selection, editable cells, and action buttons
  * - Styled consistently with the table design
  * - Uses blue hover states for better visual feedback
+ * - Supports Excel/CSV data pasting at the cell level
  * 
  * @param {TableRowProps} props - Component props
  * @returns {JSX.Element} Rendered component
@@ -132,10 +140,11 @@ const TableRow: React.FC<TableRowProps> = ({
   onAddColumn, 
   onDeleteTask,
   onUpdateTask,
-  isLastRow = false
+  isLastRow = false,
+  onSetEditingCell,
+  onClearEditingCell,
+  isEditing = null
 }) => {
-  // State for tracking which cell is being edited
-  const [editingCell, setEditingCell] = useState<string | null>(null);
   // State for tracking which cell is being hovered
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
 
@@ -157,11 +166,21 @@ const TableRow: React.FC<TableRowProps> = ({
     if (event.key === 'Enter') {
       event.preventDefault();
       // Use columnId to exit editing mode for the specific column
-      if (editingCell === columnId) {
-        setEditingCell(null);
+      if (isEditing === columnId) {
+        onClearEditingCell?.();
       }
     } else if (event.key === 'Escape') {
-      setEditingCell(null);
+      onClearEditingCell?.();
+    }
+  };
+
+  /**
+   * Handles cell click to start editing
+   * @param columnId - The identifier of the column to edit
+   */
+  const handleCellClick = (columnId: string) => {
+    if (!isEditing && columnId !== 'select' && onSetEditingCell) {
+      onSetEditingCell(task.id, columnId);
     }
   };
 
@@ -187,7 +206,7 @@ const TableRow: React.FC<TableRowProps> = ({
    */
   const renderCell = (column: Column) => {
     const value = task[column.id] || '';
-    const isEditing = editingCell === column.id;
+    const isEditingThisCell = isEditing === column.id;
     
     // Render different cell types based on column.type
     switch (column.type) {
@@ -211,12 +230,12 @@ const TableRow: React.FC<TableRowProps> = ({
         };
         const colorClass = statusColors[value as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
         
-        return isEditing ? (
+        return isEditingThisCell ? (
           <div className="w-full h-6 flex items-center">
             <CustomStatusDropdown 
               value={value as string}
               onChange={(newValue) => handleCellChange(column.id, newValue)}
-              onClose={() => setEditingCell(null)}
+              onClose={() => onClearEditingCell?.()}
               onKeyDown={(e) => handleKeyDown(e, column.id)}
               isLastRow={isLastRow}
             />
@@ -238,13 +257,13 @@ const TableRow: React.FC<TableRowProps> = ({
         };
         const priorityColorClass = priorityColors[value as keyof typeof priorityColors] || 'bg-gray-100 text-gray-800';
         
-        return isEditing ? (
+        return isEditingThisCell ? (
           <div className="w-full h-6 flex items-center">
             <div className={`relative inline-block w-full ${isLastRow ? 'dropdown-top' : ''}`}>
               <select
                 value={value}
                 onChange={(e) => handleCellChange(column.id, e.target.value)}
-                onBlur={() => setEditingCell(null)}
+                onBlur={() => onClearEditingCell?.()}
                 onKeyDown={(e) => handleKeyDown(e, column.id)}
                 className="w-full py-0 px-1 appearance-none bg-white border border-blue-500 focus:outline-none text-xs"
                 autoFocus
@@ -270,13 +289,13 @@ const TableRow: React.FC<TableRowProps> = ({
         );
 
       case 'date':
-        return isEditing ? (
+        return isEditingThisCell ? (
           <div className="w-full h-6 flex items-center">
             <input
               type="date"
               value={value}
               onChange={(e) => handleCellChange(column.id, e.target.value)}
-              onBlur={() => setEditingCell(null)}
+              onBlur={() => onClearEditingCell?.()}
               onKeyDown={(e) => handleKeyDown(e, column.id)}
               className="w-full py-0 px-1 border border-blue-500 focus:outline-none text-xs"
               style={{ height: '24px' }}
@@ -290,13 +309,13 @@ const TableRow: React.FC<TableRowProps> = ({
         );
 
       default:
-        return isEditing ? (
+        return isEditingThisCell ? (
           <div className="w-full h-6 flex items-center">
             <input
               type="text"
               value={value}
               onChange={(e) => handleCellChange(column.id, e.target.value)}
-              onBlur={() => setEditingCell(null)}
+              onBlur={() => onClearEditingCell?.()}
               onKeyDown={(e) => handleKeyDown(e, column.id)}
               className="w-full py-0 px-1 border border-blue-500 focus:outline-none text-xs"
               style={{ height: '24px' }}
@@ -332,7 +351,7 @@ const TableRow: React.FC<TableRowProps> = ({
             ) : (
               <div 
                 className={`h-full flex items-center p-4 cursor-pointer transition-all duration-300 ${isHovered ? 'bg-blue-100' : ''}`}
-                onClick={() => !editingCell && setEditingCell(column.id)}
+                onClick={() => handleCellClick(column.id)}
                 onMouseEnter={() => handleMouseEnter(column.id)}
                 onMouseLeave={handleMouseLeave}
               >

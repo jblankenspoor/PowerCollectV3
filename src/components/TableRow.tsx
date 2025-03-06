@@ -21,6 +21,7 @@ interface TableRowProps {
   onAddColumn: () => void;
   onDeleteTask: (taskId: string) => void;
   onUpdateTask: (taskId: string, columnId: string, value: string) => void;
+  isLastRow?: boolean;
 }
 
 /**
@@ -36,7 +37,8 @@ const CustomStatusDropdown: React.FC<{
   onChange: (value: string) => void;
   onClose: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
-}> = ({ value, onChange, onClose, onKeyDown }) => {
+  isLastRow?: boolean;
+}> = ({ value, onChange, onClose, onKeyDown, isLastRow = false }) => {
   const [isOpen, setIsOpen] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
@@ -92,7 +94,11 @@ const CustomStatusDropdown: React.FC<{
       
       {/* Dropdown options - more compact */}
       {isOpen && (
-        <div className="absolute left-0 right-0 mt-0.5 border border-gray-200 rounded shadow-sm bg-white overflow-hidden">
+        <div 
+          className={`absolute left-0 right-0 border border-gray-200 rounded shadow-sm bg-white overflow-hidden ${
+            isLastRow ? 'bottom-full mb-0.5' : 'top-full mt-0.5'
+          }`}
+        >
           {statusOptions.map((option) => (
             <div
               key={option.value}
@@ -125,7 +131,8 @@ const TableRow: React.FC<TableRowProps> = ({
   onSelectTask, 
   onAddColumn, 
   onDeleteTask,
-  onUpdateTask
+  onUpdateTask,
+  isLastRow = false
 }) => {
   // State for tracking which cell is being edited
   const [editingCell, setEditingCell] = useState<string | null>(null);
@@ -208,6 +215,7 @@ const TableRow: React.FC<TableRowProps> = ({
               onChange={(newValue) => handleCellChange(column.id, newValue)}
               onClose={() => setEditingCell(null)}
               onKeyDown={(e) => handleKeyDown(e, column.id)}
+              isLastRow={isLastRow}
             />
           </div>
         ) : (
@@ -229,7 +237,7 @@ const TableRow: React.FC<TableRowProps> = ({
         
         return isEditing ? (
           <div className="w-full h-6 flex items-center">
-            <div className="relative inline-block w-full">
+            <div className={`relative inline-block w-full ${isLastRow ? 'dropdown-top' : ''}`}>
               <select
                 value={value}
                 onChange={(e) => handleCellChange(column.id, e.target.value)}

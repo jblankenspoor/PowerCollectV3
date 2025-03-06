@@ -305,7 +305,7 @@ const DataTable: React.FC = () => {
           />
 
           {/* Table Body - Map through tasks to create rows */}
-          {tasks.map(task => (
+          {tasks.map((task, index) => (
             <TableRow
               key={task.id}
               task={task}
@@ -315,6 +315,7 @@ const DataTable: React.FC = () => {
               onAddColumn={handleAddColumn}
               onDeleteTask={handleDeleteTask}
               onUpdateTask={handleUpdateTask}
+              isLastRow={index === tasks.length - 1}
             />
           ))}
           

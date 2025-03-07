@@ -201,10 +201,35 @@ const DataTable: React.FC = () => {
   const tableRef = useRef<HTMLDivElement>(null);
   
   // Use the custom table resize hook to handle scroll notification
-  const { showScrollNotification } = useTableResize(
+  const { showScrollNotification, setShowScrollNotification } = useTableResize(
     tableRef,
     [columns, tasks]
   );
+
+  /**
+   * Manually recalculates the table width
+   * This function ensures the table width is maintained after state updates
+   */
+  const recalculateTableWidth = () => {
+    setTimeout(() => {
+      if (!tableRef.current || !tableRef.current.parentElement) return;
+      
+      const tableContainer = tableRef.current.firstChild as HTMLElement;
+      if (!tableContainer) return;
+      
+      // Measure the width of the table content and its container
+      const contentWidth = tableContainer.getBoundingClientRect().width;
+      const containerWidth = tableRef.current.parentElement.clientWidth;
+      
+      // Force the table width to match the content width
+      tableRef.current.style.width = `${contentWidth}px`;
+      
+      // Show scroll notification if needed
+      if (contentWidth > containerWidth + 30) {
+        setShowScrollNotification(true);
+      }
+    }, 0);
+  };
 
   /**
    * Saves the current state to history before making changes
@@ -235,6 +260,9 @@ const DataTable: React.FC = () => {
       
       // Clear past
       setPast(null);
+      
+      // Recalculate table width after state update
+      recalculateTableWidth();
     }
   };
 
@@ -256,6 +284,9 @@ const DataTable: React.FC = () => {
       
       // Clear future
       setFuture(null);
+      
+      // Recalculate table width after state update
+      recalculateTableWidth();
     }
   };
 
@@ -269,22 +300,19 @@ const DataTable: React.FC = () => {
     // Save current state to history before making changes
     saveToHistory();
     
-    // Create complete copies of the current state
-    let updatedTasks = JSON.parse(JSON.stringify(tasks));
+    // Update using the original approach
+    setTasks(prev => prev.map(task => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          [columnId]: value
+        };
+      }
+      return task;
+    }));
     
-    // Find the task to update
-    const taskIndex = updatedTasks.findIndex((task: Task) => task.id === taskId);
-    
-    if (taskIndex !== -1) {
-      // Update the task with the new value
-      updatedTasks[taskIndex] = {
-        ...updatedTasks[taskIndex],
-        [columnId]: value
-      };
-      
-      // Update the tasks state all at once
-      setTasks(updatedTasks);
-    }
+    // Recalculate table width after state update
+    recalculateTableWidth();
   };
 
   /**
@@ -328,14 +356,19 @@ const DataTable: React.FC = () => {
     
     const newTask: Task = {
       id: uuidv4(),
-      name: 'New Task',
-      status: 'To do',
-      priority: 'Medium',
-      startDate: 'Not set',
-      deadline: 'Not set',
+      name: '',
+      status: '',
+      priority: '',
+      startDate: '',
+      deadline: '',
     };
     
     setTasks(prev => [...prev, newTask]);
+    
+    // Recalculate table width after state update
+    recalculateTableWidth();
+    
+    // Return the new task for potential selection
     return newTask;
   };
 
@@ -348,11 +381,16 @@ const DataTable: React.FC = () => {
     saveToHistory();
     
     setTasks(prev => prev.filter(task => task.id !== taskId));
+    
+    // Also remove from selected tasks if present
     setSelectedTasks(prev => {
       const newSet = new Set(prev);
       newSet.delete(taskId);
       return newSet;
     });
+    
+    // Recalculate table width after state update
+    recalculateTableWidth();
   };
 
   /**
@@ -489,6 +527,9 @@ const DataTable: React.FC = () => {
     
     // Clear editing cell after paste
     setEditingCell(null);
+    
+    // Recalculate table width after state update
+    recalculateTableWidth();
   };
 
   /**
@@ -508,6 +549,9 @@ const DataTable: React.FC = () => {
       ...task,
       [newColumn.id]: 'New data',
     })));
+    
+    // Recalculate table width after state update
+    recalculateTableWidth();
   };
 
   /**
@@ -532,6 +576,9 @@ const DataTable: React.FC = () => {
       ...task,
       [newColumn.id]: 'New data',
     })));
+    
+    // Recalculate table width after state update
+    recalculateTableWidth();
   };
 
   /**
@@ -556,6 +603,9 @@ const DataTable: React.FC = () => {
       ...task,
       [newColumn.id]: 'New data',
     })));
+    
+    // Recalculate table width after state update
+    recalculateTableWidth();
   };
 
   /**
@@ -579,6 +629,9 @@ const DataTable: React.FC = () => {
       delete newTask[columnId];
       return newTask;
     }));
+    
+    // Recalculate table width after state update
+    recalculateTableWidth();
   };
 
   /**

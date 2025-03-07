@@ -28,7 +28,7 @@ function App() {
       
       {/* Version number in the bottom left corner */}
       <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-        v1.0.4
+        v2.0.5
       </div>
     </div>
   );

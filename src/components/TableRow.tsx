@@ -118,6 +118,18 @@ const TableRow: React.FC<TableRowProps> = ({
     const value = task[column.id] || '';
     const isEditingThisCell = isEditing === column.id;
     
+    const containerStyle = {
+      width: '100%',
+      minWidth: '100%',
+      maxWidth: '100%',
+      overflow: 'hidden'
+    };
+    
+    const inputStyle = {
+      width: '100%',
+      minWidth: '100%'
+    };
+    
     // Render different cell types based on column.type
     switch (column.type) {
       case 'select':
@@ -141,8 +153,8 @@ const TableRow: React.FC<TableRowProps> = ({
         const colorClass = statusOptions.find(option => option.value === value)?.colorClass || 'bg-gray-100 text-gray-800';
         
         return isEditingThisCell ? (
-          <div className="w-full h-6 flex items-center">
-            <div className={`relative inline-block w-full ${isLastRow ? 'dropdown-top' : ''}`}>
+          <div className="w-full h-6 flex items-center" style={containerStyle}>
+            <div className={`relative inline-block w-full ${isLastRow ? 'dropdown-top' : ''}`} style={containerStyle}>
               <select
                 value={value}
                 onChange={(e) => handleCellChange(column.id, e.target.value)}
@@ -150,6 +162,7 @@ const TableRow: React.FC<TableRowProps> = ({
                 onKeyDown={(e) => handleKeyDown(e, column.id)}
                 className="w-full py-0 px-1 appearance-none bg-white border border-blue-500 focus:outline-none text-xs"
                 autoFocus
+                style={inputStyle}
               >
                 {statusOptions.map(option => (
                   <option key={option.value} value={option.value}>{option.value}</option>
@@ -163,7 +176,7 @@ const TableRow: React.FC<TableRowProps> = ({
             </div>
           </div>
         ) : (
-          <div className="h-6 flex items-center">
+          <div className="h-6 flex items-center" style={containerStyle}>
             <span className={`px-2 py-1 text-xs rounded-full ${colorClass}`}>
               {value}
             </span>
@@ -180,8 +193,8 @@ const TableRow: React.FC<TableRowProps> = ({
         const priorityColorClass = priorityColors[value as keyof typeof priorityColors] || 'bg-gray-100 text-gray-800';
         
         return isEditingThisCell ? (
-          <div className="w-full h-6 flex items-center">
-            <div className={`relative inline-block w-full ${isLastRow ? 'dropdown-top' : ''}`}>
+          <div className="w-full h-6 flex items-center" style={containerStyle}>
+            <div className={`relative inline-block w-full ${isLastRow ? 'dropdown-top' : ''}`} style={containerStyle}>
               <select
                 value={value}
                 onChange={(e) => handleCellChange(column.id, e.target.value)}
@@ -189,6 +202,7 @@ const TableRow: React.FC<TableRowProps> = ({
                 onKeyDown={(e) => handleKeyDown(e, column.id)}
                 className="w-full py-0 px-1 appearance-none bg-white border border-blue-500 focus:outline-none text-xs"
                 autoFocus
+                style={inputStyle}
               >
                 {priorityOptions.map(option => (
                   <option key={option} value={option}>{option}</option>
@@ -202,7 +216,7 @@ const TableRow: React.FC<TableRowProps> = ({
             </div>
           </div>
         ) : (
-          <div className="h-6 flex items-center">
+          <div className="h-6 flex items-center" style={containerStyle}>
             <span className={`px-2 py-1 text-xs rounded-full ${priorityColorClass}`}>
               {value}
             </span>
@@ -211,7 +225,7 @@ const TableRow: React.FC<TableRowProps> = ({
 
       case 'date':
         return isEditingThisCell ? (
-          <div className="w-full h-6 flex items-center">
+          <div className="w-full h-6 flex items-center" style={containerStyle}>
             <input
               type="date"
               value={value}
@@ -220,17 +234,18 @@ const TableRow: React.FC<TableRowProps> = ({
               onKeyDown={(e) => handleKeyDown(e, column.id)}
               className="w-full py-0 px-1 border border-blue-500 focus:outline-none text-xs"
               autoFocus
+              style={inputStyle}
             />
           </div>
         ) : (
-          <div className="h-6 flex items-center">
+          <div className="h-6 flex items-center" style={containerStyle}>
             <span className="text-xs">{value}</span>
           </div>
         );
 
       default:
         return isEditingThisCell ? (
-          <div className="w-full h-6 flex items-center">
+          <div className="w-full h-6 flex items-center" style={containerStyle}>
             <input
               type="text"
               value={value}
@@ -239,11 +254,16 @@ const TableRow: React.FC<TableRowProps> = ({
               onKeyDown={(e) => handleKeyDown(e, column.id)}
               className="w-full py-0 px-1 border border-blue-500 focus:outline-none text-xs"
               autoFocus
+              style={{
+                ...inputStyle,
+                // Ensure input doesn't cause column width to change
+                boxSizing: 'border-box'
+              }}
             />
           </div>
         ) : (
-          <div className="h-6 flex items-center">
-            <span className="text-xs">{value}</span>
+          <div className="h-6 flex items-center" style={containerStyle}>
+            <span className="text-xs truncate w-full">{value}</span>
           </div>
         );
     }
@@ -257,11 +277,23 @@ const TableRow: React.FC<TableRowProps> = ({
       {columns.map(column => {
         const isSelectColumn = column.type === 'select';
         const isHovered = hoveredCell === column.id;
+        const isEditingThisCell = isEditing === column.id;
+        
+        // Extract pixel width from minWidth CSS class for fixed sizing
+        const widthMatch = column.minWidth ? column.minWidth.match(/min-w-\[(\d+)px\]/) : null;
+        const pixelWidth = widthMatch ? widthMatch[1] + 'px' : 'auto';
         
         return (
           <div 
             key={`${task.id}-${column.id}`}
-            className={`${column.width} ${column.minWidth || ''} ${rowHeight}`}
+            className={`${column.width} ${column.minWidth || ''} ${rowHeight} flex-shrink-0`}
+            style={{ 
+              width: pixelWidth,
+              minWidth: pixelWidth,
+              maxWidth: pixelWidth,
+              overflow: 'hidden',
+              boxSizing: 'border-box' // Ensure padding is included in width calculation
+            }}
           >
             {isSelectColumn ? (
               <div className="h-full flex items-center justify-center p-4">
@@ -273,6 +305,10 @@ const TableRow: React.FC<TableRowProps> = ({
                 onClick={() => handleCellClick(column.id)}
                 onMouseEnter={() => handleMouseEnter(column.id)}
                 onMouseLeave={handleMouseLeave}
+                style={{ 
+                  width: '100%',
+                  overflow: 'hidden'
+                }}
               >
                 {renderCell(column)}
               </div>

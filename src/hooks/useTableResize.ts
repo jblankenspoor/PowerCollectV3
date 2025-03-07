@@ -32,12 +32,13 @@ const useTableResize = (
       if (!tableContainer) return;
       
       // Measure the width of the table content and its container
-      const contentWidth = tableContainer.getBoundingClientRect().width;
+      // Use scrollWidth instead of getBoundingClientRect to get full content width
+      const contentWidth = tableContainer.scrollWidth;
       const containerWidth = tableRef.current.parentElement.clientWidth;
       
-      // Update the tableWidth for proper sizing
+      // Update the tableWidth for tracking purposes, but don't set an explicit width
+      // on the table element to avoid width fluctuation
       setTableWidth(contentWidth);
-      tableRef.current.style.width = `${contentWidth}px`;
       
       // Determine if scroll notification should be shown
       // Only show if there's at least 30px of scrollable content

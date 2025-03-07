@@ -209,20 +209,28 @@ const DataTable: React.FC = () => {
   /**
    * Manually recalculates the table width
    * This function ensures the table width is maintained after state updates
+   * and preserves the scroll position of the container
    */
   const recalculateTableWidth = () => {
     setTimeout(() => {
       if (!tableRef.current || !tableRef.current.parentElement) return;
       
+      // Get the current scroll position before recalculation
+      const scrollElement = tableRef.current.parentElement;
+      const currentScrollLeft = scrollElement.scrollLeft;
+      
       const tableContainer = tableRef.current.firstChild as HTMLElement;
       if (!tableContainer) return;
       
       // Measure the width of the table content and its container
-      const contentWidth = tableContainer.getBoundingClientRect().width;
+      const contentWidth = tableContainer.scrollWidth;
       const containerWidth = tableRef.current.parentElement.clientWidth;
       
-      // Force the table width to match the content width
-      tableRef.current.style.width = `${contentWidth}px`;
+      // Instead of setting explicit width, maintain stable width through CSS classes
+      // that we've already set (w-full). This prevents width fluctuation
+      
+      // Restore the scroll position
+      scrollElement.scrollLeft = currentScrollLeft;
       
       // Show scroll notification if needed
       if (contentWidth > containerWidth + 30) {
@@ -640,7 +648,20 @@ const DataTable: React.FC = () => {
    * @param columnId - The identifier of the column being edited
    */
   const handleSetEditingCell = (taskId: string, columnId: string) => {
+    // Get the current scroll position before switching to edit mode
+    let currentScrollLeft = 0;
+    if (tableRef.current?.parentElement) {
+      currentScrollLeft = tableRef.current.parentElement.scrollLeft;
+    }
+    
+    // Set the editing cell
     setEditingCell({ taskId, columnId });
+    
+    // Preserve the scroll position after switching to edit mode
+    setTimeout(() => {
+      if (!tableRef.current || !tableRef.current.parentElement) return;
+      tableRef.current.parentElement.scrollLeft = currentScrollLeft;
+    }, 0);
   };
 
   /**
@@ -648,6 +669,29 @@ const DataTable: React.FC = () => {
    */
   const handleClearEditingCell = () => {
     setEditingCell(null);
+    
+    // Preserve the scroll position by recalculating table width 
+    // and restoring the current scroll position after the state update
+    setTimeout(() => {
+      if (!tableRef.current || !tableRef.current.parentElement) return;
+      
+      // Get the current scroll position before recalculation
+      const scrollElement = tableRef.current.parentElement;
+      const currentScrollLeft = scrollElement.scrollLeft;
+      
+      // Recalculate table dimensions
+      const tableContainer = tableRef.current.firstChild as HTMLElement;
+      if (!tableContainer) return;
+      
+      // Measure the width of the table content and its container
+      const contentWidth = tableContainer.getBoundingClientRect().width;
+      
+      // Force the table width to match the content width
+      tableRef.current.style.width = `${contentWidth}px`;
+      
+      // Restore the scroll position
+      scrollElement.scrollLeft = currentScrollLeft;
+    }, 0);
   };
 
   /**
@@ -810,8 +854,11 @@ const DataTable: React.FC = () => {
           {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
           <div 
             ref={tableRef}
-            className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto inline-block"
-            style={{ maxWidth: '100%' }} /* Ensures it doesn't exceed viewport width */
+            className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto"
+            style={{ 
+              maxWidth: '100%',
+              width: '100%' /* Change from inline style width to 100% width to prevent shrinking */
+            }}
             onPaste={handlePaste} /* Handle paste events at the table level */
             tabIndex={0} /* Make the div focusable to receive keyboard events */
           >
@@ -827,8 +874,8 @@ const DataTable: React.FC = () => {
               </div>
             )}
             
-            {/* Table container - w-max ensures it only takes the space it needs */}
-            <div className="w-max table-fixed">
+            {/* Table container - changed from w-max to w-full to maintain stable width */}
+            <div className="w-full table-fixed">
               {/* Table Header Component */}
               <TableHeader 
                 columns={columns}

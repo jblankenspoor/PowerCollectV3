@@ -201,39 +201,10 @@ const DataTable: React.FC = () => {
   const tableRef = useRef<HTMLDivElement>(null);
   
   // Use the custom table resize hook to handle scroll notification
-  const { 
-    tableWidth, 
-    showScrollNotification, 
-    setShowScrollNotification
-  } = useTableResize(
+  const { showScrollNotification } = useTableResize(
     tableRef,
     [columns, tasks]
   );
-
-  /**
-   * Function to manually trigger table resize recalculation
-   */
-  const recalculateTableWidth = () => {
-    if (!tableRef.current || !tableRef.current.parentElement) return;
-    
-    // First make sure the table has the correct columns before measuring
-    setTimeout(() => {
-      const tableContainer = tableRef.current?.firstChild as HTMLElement;
-      if (!tableContainer) return;
-      
-      // Measure the width and update the style
-      const contentWidth = tableContainer.getBoundingClientRect().width;
-      if (tableRef.current) {
-        tableRef.current.style.width = `${contentWidth}px`;
-      }
-      
-      // If the table is now wider than its container, show scroll notification
-      const containerWidth = tableRef.current?.parentElement?.clientWidth || 0;
-      if (contentWidth > containerWidth + 30) {
-        setShowScrollNotification(true);
-      }
-    }, 50);
-  };
 
   /**
    * Saves the current state to history before making changes
@@ -443,72 +414,74 @@ const DataTable: React.FC = () => {
     // Skip if no data to paste
     if (data.length === 0 || data[0].length === 0) return;
     
-    // Find indices to start pasting from
-    const startTaskIndex = tasks.findIndex(task => task.id === startTaskId);
-    const startColumnIndex = columns.findIndex(col => col.id === startColumnId);
+    // Find starting indices
+    const startRowIndex = tasks.findIndex(task => task.id === startTaskId);
+    const startColumnIndex = columns.findIndex(column => column.id === startColumnId);
     
-    if (startTaskIndex === -1 || startColumnIndex === -1) return;
+    // Skip if invalid starting position
+    if (startRowIndex === -1 || startColumnIndex === -1) return;
     
-    // Create new tasks array to avoid mutation
-    const newTasks = [...tasks];
+    // Calculate required dimensions
+    const requiredRows = startRowIndex + data.length;
+    const requiredColumns = startColumnIndex + Math.max(...data.map(row => row.length));
     
-    // Ensure we have enough rows for pasted data
-    while (newTasks.length < startTaskIndex + data.length) {
-      newTasks.push({
+    // Create a working copy of tasks to build upon
+    let updatedTasks = [...tasks];
+    let updatedColumns = [...columns];
+    
+    // Add new rows if needed
+    while (updatedTasks.length < requiredRows) {
+      const newTask: Task = {
         id: uuidv4(),
-        name: '',
-        status: '',
-        priority: '',
-        startDate: '',
-        deadline: '',
-      });
+        name: 'New Task',
+        status: 'To do',
+        priority: 'Medium',
+        startDate: 'Not set',
+        deadline: 'Not set',
+      };
+      updatedTasks.push(newTask);
     }
     
-    // Ensure we have enough columns for pasted data
-    let newColumns = [...columns];
-    for (let colIndex = 0; colIndex < data[0].length; colIndex++) {
-      const targetColIndex = startColumnIndex + colIndex;
+    // Add new columns if needed
+    while (updatedColumns.length < requiredColumns) {
+      const newColumn = createNewColumn(`COLUMN ${updatedColumns.length}`);
+      updatedColumns.push(newColumn);
       
-      // If we need to add more columns
-      if (targetColIndex >= newColumns.length) {
-        const newColumn = createNewColumn(`NEW COLUMN ${targetColIndex + 1}`);
-        newColumns.push(newColumn);
-        
-        // Initialize empty value for the new column in all tasks
-        newTasks.forEach(task => {
-          task[newColumn.id] = '';
+      // Add the new column data to each task
+      updatedTasks = updatedTasks.map(task => ({
+        ...task,
+        [newColumn.id]: 'New data',
+      }));
+    }
+    
+    // Update the tasks with pasted data
+    data.forEach((rowData, rowOffset) => {
+      const taskIndex = startRowIndex + rowOffset;
+      if (taskIndex < updatedTasks.length) {
+        rowData.forEach((cellValue, colOffset) => {
+          const columnIndex = startColumnIndex + colOffset;
+          if (columnIndex < updatedColumns.length) {
+            const columnId = updatedColumns[columnIndex].id;
+            updatedTasks[taskIndex] = {
+              ...updatedTasks[taskIndex],
+              [columnId]: cellValue
+            };
+          }
         });
       }
-    }
+    });
     
-    // If we added columns, update the columns state
-    if (newColumns.length > columns.length) {
-      setColumns(newColumns);
-    }
-    
-    // Paste the data into the tasks
-    for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
-      const targetTaskIndex = startTaskIndex + rowIndex;
-      const targetTask = newTasks[targetTaskIndex];
-      
-      for (let colIndex = 0; colIndex < data[rowIndex].length; colIndex++) {
-        const targetColIndex = startColumnIndex + colIndex;
-        const targetColumn = newColumns[targetColIndex];
-        
-        if (targetColumn.id !== 'select') { // Skip pasting into select column
-          targetTask[targetColumn.id] = data[rowIndex][colIndex];
-        }
-      }
-    }
-    
-    // Update tasks state with the new data
-    setTasks(newTasks);
+    // Update state
+    setColumns(updatedColumns);
+    setTasks(updatedTasks);
     
     // Show success notification
-    showPasteSuccessNotification(data.length, data[0].length);
+    const rowCount = data.length;
+    const colCount = Math.max(...data.map(row => row.length));
+    showPasteSuccessNotification(rowCount, colCount);
     
-    // Recalculate table width after a short delay to ensure DOM has updated
-    setTimeout(recalculateTableWidth, 100);
+    // Clear editing cell after paste
+    setEditingCell(null);
   };
 
   /**
@@ -528,9 +501,6 @@ const DataTable: React.FC = () => {
       ...task,
       [newColumn.id]: 'New data',
     })));
-    
-    // Recalculate table width after DOM update
-    setTimeout(recalculateTableWidth, 100);
   };
 
   /**
@@ -555,9 +525,6 @@ const DataTable: React.FC = () => {
       ...task,
       [newColumn.id]: 'New data',
     })));
-    
-    // Recalculate table width after DOM update
-    setTimeout(recalculateTableWidth, 100);
   };
 
   /**
@@ -582,9 +549,6 @@ const DataTable: React.FC = () => {
       ...task,
       [newColumn.id]: 'New data',
     })));
-    
-    // Recalculate table width after DOM update
-    setTimeout(recalculateTableWidth, 100);
   };
 
   /**
@@ -608,9 +572,6 @@ const DataTable: React.FC = () => {
       delete newTask[columnId];
       return newTask;
     }));
-    
-    // Recalculate table width after DOM update
-    setTimeout(recalculateTableWidth, 100);
   };
 
   /**

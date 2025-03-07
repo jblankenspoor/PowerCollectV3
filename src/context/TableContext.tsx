@@ -251,7 +251,7 @@ function tableReducer(state: TableState, action: TableAction): TableState {
     }
 
     case 'DELETE_COLUMN': {
-      const { columnId, columnIndex } = action.payload;
+      const { columnId } = action.payload;
       
       // Don't allow deleting the select column or if there's only one regular column left
       if (columnId === 'select' || (state.columns.length <= 2)) {

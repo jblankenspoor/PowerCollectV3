@@ -6,7 +6,7 @@
  * @module TableRow
  */
 
-import React, { useState, KeyboardEvent } from 'react';
+import React, { useState } from 'react';
 import { Column, Task } from '../../types/dataTypes';
 import ActionCell from '../ActionCell';
 import CellFactory from '../cells/CellFactory';

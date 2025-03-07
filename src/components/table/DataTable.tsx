@@ -55,7 +55,7 @@ const DataTable: React.FC = () => {
   const tableRef = useRef<HTMLDivElement>(null);
   
   // Use the custom table resize hook to handle scroll notification
-  const { setShowScrollNotification } = useTableResize(
+  useTableResize(
     tableRef,
     [columns, tasks]
   );

@@ -201,10 +201,39 @@ const DataTable: React.FC = () => {
   const tableRef = useRef<HTMLDivElement>(null);
   
   // Use the custom table resize hook to handle scroll notification
-  const { showScrollNotification } = useTableResize(
+  const { 
+    tableWidth, 
+    showScrollNotification, 
+    setShowScrollNotification
+  } = useTableResize(
     tableRef,
     [columns, tasks]
   );
+
+  /**
+   * Function to manually trigger table resize recalculation
+   */
+  const recalculateTableWidth = () => {
+    if (!tableRef.current || !tableRef.current.parentElement) return;
+    
+    // First make sure the table has the correct columns before measuring
+    setTimeout(() => {
+      const tableContainer = tableRef.current?.firstChild as HTMLElement;
+      if (!tableContainer) return;
+      
+      // Measure the width and update the style
+      const contentWidth = tableContainer.getBoundingClientRect().width;
+      if (tableRef.current) {
+        tableRef.current.style.width = `${contentWidth}px`;
+      }
+      
+      // If the table is now wider than its container, show scroll notification
+      const containerWidth = tableRef.current?.parentElement?.clientWidth || 0;
+      if (contentWidth > containerWidth + 30) {
+        setShowScrollNotification(true);
+      }
+    }, 50);
+  };
 
   /**
    * Saves the current state to history before making changes
@@ -367,128 +396,6 @@ const DataTable: React.FC = () => {
   };
 
   /**
-   * Adds a new column to the table at the right end
-   */
-  const handleAddColumn = () => {
-    // Save current state to history before making changes
-    saveToHistory();
-    
-    const newColumn = createNewColumn(`COLUMN ${columns.length}`);
-    
-    // Add the new column to the columns array
-    setColumns(prev => [...prev, newColumn]);
-    
-    // Add the new column data to each task
-    setTasks(prev => prev.map(task => ({
-      ...task,
-      [newColumn.id]: 'New data',
-    })));
-  };
-
-  /**
-   * Adds a column to the left of the specified column index
-   * @param columnIndex - Index of the column to add to the left of
-   */
-  const handleAddColumnLeft = (columnIndex: number) => {
-    // Save current state to history before making changes
-    saveToHistory();
-    
-    const newColumn = createNewColumn(`COLUMN L${columnIndex}`);
-    
-    // Insert the new column at the specified index
-    setColumns(prev => [
-      ...prev.slice(0, columnIndex),
-      newColumn,
-      ...prev.slice(columnIndex)
-    ]);
-    
-    // Add the new column data to each task
-    setTasks(prev => prev.map(task => ({
-      ...task,
-      [newColumn.id]: 'New data',
-    })));
-  };
-
-  /**
-   * Adds a column to the right of the specified column index
-   * @param columnIndex - Index of the column to add to the right of
-   */
-  const handleAddColumnRight = (columnIndex: number) => {
-    // Save current state to history before making changes
-    saveToHistory();
-    
-    const newColumn = createNewColumn(`COLUMN R${columnIndex}`);
-    
-    // Insert the new column after the specified index
-    setColumns(prev => [
-      ...prev.slice(0, columnIndex + 1),
-      newColumn,
-      ...prev.slice(columnIndex + 1)
-    ]);
-    
-    // Add the new column data to each task
-    setTasks(prev => prev.map(task => ({
-      ...task,
-      [newColumn.id]: 'New data',
-    })));
-  };
-
-  /**
-   * Deletes a column from the table
-   * @param columnId - ID of the column to delete
-   * @param columnIndex - Index of the column to delete
-   */
-  const handleDeleteColumn = (columnId: string, columnIndex: number) => {
-    // Skip if trying to delete the select column (first column)
-    if (columnIndex === 0) return;
-    
-    // Save current state to history before making changes
-    saveToHistory();
-    
-    // Remove the column from the columns array
-    setColumns(prev => prev.filter(col => col.id !== columnId));
-    
-    // Remove the column data from each task
-    setTasks(prev => prev.map(task => {
-      const newTask = {...task};
-      delete newTask[columnId];
-      return newTask;
-    }));
-  };
-
-  /**
-   * Sets the currently editing cell
-   * @param taskId - The unique identifier of the task
-   * @param columnId - The identifier of the column being edited
-   */
-  const handleSetEditingCell = (taskId: string, columnId: string) => {
-    setEditingCell({ taskId, columnId });
-  };
-
-  /**
-   * Clears the currently editing cell
-   */
-  const handleClearEditingCell = () => {
-    setEditingCell(null);
-  };
-
-  /**
-   * Parses clipboard data into a structured format
-   * @param clipboardText - Raw text from clipboard
-   * @returns 2D array of values
-   */
-  const parseClipboardData = (clipboardText: string): string[][] => {
-    // Split by newlines to get rows
-    const rows = clipboardText.split(/\r?\n/).filter(row => row.trim() !== '');
-    
-    // Detect delimiter (tab for Excel, comma for CSV)
-    const delimiter = rows[0].includes('\t') ? '\t' : ',';
-    
-    // Parse each row into columns
-    return rows.map(row => row.split(delimiter));
-  };
-
-  /**
    * Handles paste events for the table
    * @param event - ClipboardEvent containing the pasted data
    */
@@ -524,8 +431,8 @@ const DataTable: React.FC = () => {
   };
 
   /**
-   * Apply pasted data to the table, expanding as needed
-   * @param data - 2D array of values from clipboard
+   * Apply data pasted from clipboard
+   * @param data - 2D array of strings from the clipboard
    * @param startTaskId - ID of the task where paste begins
    * @param startColumnId - ID of the column where paste begins
    */
@@ -599,6 +506,143 @@ const DataTable: React.FC = () => {
     
     // Show success notification
     showPasteSuccessNotification(data.length, data[0].length);
+    
+    // Recalculate table width after a short delay to ensure DOM has updated
+    setTimeout(recalculateTableWidth, 100);
+  };
+
+  /**
+   * Adds a new column to the table at the right end
+   */
+  const handleAddColumn = () => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
+    const newColumn = createNewColumn(`COLUMN ${columns.length}`);
+    
+    // Add the new column to the columns array
+    setColumns(prev => [...prev, newColumn]);
+    
+    // Add the new column data to each task
+    setTasks(prev => prev.map(task => ({
+      ...task,
+      [newColumn.id]: 'New data',
+    })));
+    
+    // Recalculate table width after DOM update
+    setTimeout(recalculateTableWidth, 100);
+  };
+
+  /**
+   * Adds a column to the left of the specified column index
+   * @param columnIndex - Index of the column to add to the left of
+   */
+  const handleAddColumnLeft = (columnIndex: number) => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
+    const newColumn = createNewColumn(`COLUMN L${columnIndex}`);
+    
+    // Insert the new column at the specified index
+    setColumns(prev => [
+      ...prev.slice(0, columnIndex),
+      newColumn,
+      ...prev.slice(columnIndex)
+    ]);
+    
+    // Add the new column data to each task
+    setTasks(prev => prev.map(task => ({
+      ...task,
+      [newColumn.id]: 'New data',
+    })));
+    
+    // Recalculate table width after DOM update
+    setTimeout(recalculateTableWidth, 100);
+  };
+
+  /**
+   * Adds a column to the right of the specified column index
+   * @param columnIndex - Index of the column to add to the right of
+   */
+  const handleAddColumnRight = (columnIndex: number) => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
+    const newColumn = createNewColumn(`COLUMN R${columnIndex}`);
+    
+    // Insert the new column after the specified index
+    setColumns(prev => [
+      ...prev.slice(0, columnIndex + 1),
+      newColumn,
+      ...prev.slice(columnIndex + 1)
+    ]);
+    
+    // Add the new column data to each task
+    setTasks(prev => prev.map(task => ({
+      ...task,
+      [newColumn.id]: 'New data',
+    })));
+    
+    // Recalculate table width after DOM update
+    setTimeout(recalculateTableWidth, 100);
+  };
+
+  /**
+   * Deletes a column from the table
+   * @param columnId - ID of the column to delete
+   * @param columnIndex - Index of the column to delete
+   */
+  const handleDeleteColumn = (columnId: string, columnIndex: number) => {
+    // Skip if trying to delete the select column (first column)
+    if (columnIndex === 0) return;
+    
+    // Save current state to history before making changes
+    saveToHistory();
+    
+    // Remove the column from the columns array
+    setColumns(prev => prev.filter(col => col.id !== columnId));
+    
+    // Remove the column data from each task
+    setTasks(prev => prev.map(task => {
+      const newTask = {...task};
+      delete newTask[columnId];
+      return newTask;
+    }));
+    
+    // Recalculate table width after DOM update
+    setTimeout(recalculateTableWidth, 100);
+  };
+
+  /**
+   * Sets the currently editing cell
+   * @param taskId - The unique identifier of the task
+   * @param columnId - The identifier of the column being edited
+   */
+  const handleSetEditingCell = (taskId: string, columnId: string) => {
+    setEditingCell({ taskId, columnId });
+  };
+
+  /**
+   * Clears the currently editing cell
+   */
+  const handleClearEditingCell = () => {
+    setEditingCell(null);
+  };
+
+  /**
+   * Parses clipboard data into a structured format
+   * @param clipboardText - Raw text from clipboard
+   * @returns 2D array of values
+   */
+  const parseClipboardData = (clipboardText: string): string[][] => {
+    // Split by newlines to get rows
+    const rows = clipboardText.split(/\r?\n/).filter(row => row.trim() !== '');
+    
+    // Detect delimiter (tab for Excel, comma for CSV)
+    const delimiter = rows[0].includes('\t') ? '\t' : ',';
+    
+    // Parse each row into columns
+    return rows.map(row => row.split(delimiter));
   };
 
   // Setup keyboard event listeners for the whole component

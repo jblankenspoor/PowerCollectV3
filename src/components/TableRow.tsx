@@ -150,7 +150,6 @@ const TableRow: React.FC<TableRowProps> = ({
                 onKeyDown={(e) => handleKeyDown(e, column.id)}
                 className="w-full py-0 px-1 appearance-none bg-white border border-blue-500 focus:outline-none text-xs"
                 autoFocus
-                style={{ height: '24px' }}
               >
                 {statusOptions.map(option => (
                   <option key={option.value} value={option.value}>{option.value}</option>
@@ -190,7 +189,6 @@ const TableRow: React.FC<TableRowProps> = ({
                 onKeyDown={(e) => handleKeyDown(e, column.id)}
                 className="w-full py-0 px-1 appearance-none bg-white border border-blue-500 focus:outline-none text-xs"
                 autoFocus
-                style={{ height: '24px' }}
               >
                 {priorityOptions.map(option => (
                   <option key={option} value={option}>{option}</option>
@@ -221,7 +219,6 @@ const TableRow: React.FC<TableRowProps> = ({
               onBlur={() => onClearEditingCell?.()}
               onKeyDown={(e) => handleKeyDown(e, column.id)}
               className="w-full py-0 px-1 border border-blue-500 focus:outline-none text-xs"
-              style={{ height: '24px' }}
               autoFocus
             />
           </div>
@@ -241,7 +238,6 @@ const TableRow: React.FC<TableRowProps> = ({
               onBlur={() => onClearEditingCell?.()}
               onKeyDown={(e) => handleKeyDown(e, column.id)}
               className="w-full py-0 px-1 border border-blue-500 focus:outline-none text-xs"
-              style={{ height: '24px' }}
               autoFocus
             />
           </div>

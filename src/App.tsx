@@ -2,7 +2,7 @@ import DataTable from './components/DataTable';
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
+    <div className="min-h-screen bg-gray-50 py-6 relative">
       {/* Full width container with no constraints */}
       <div className="w-full px-4">
         <div className="mb-8">
@@ -24,6 +24,11 @@ function App() {
             Generate Power FX
           </button>
         </div>
+      </div>
+      
+      {/* Version number in the bottom left corner */}
+      <div className="absolute bottom-2 left-2 text-xs text-gray-500">
+        v2.0.0
       </div>
     </div>
   );

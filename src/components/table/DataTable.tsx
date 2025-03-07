@@ -13,12 +13,13 @@
 
 import React, { useRef, useEffect } from 'react';
 import { ArrowUturnLeftIcon, ArrowUturnRightIcon } from '@heroicons/react/24/outline';
+import { Column } from '../../types/dataTypes';
 
 // Import refactored components
 import TableHeader from './TableHeader';
 import TableRow from './TableRow';
 import ColumnActionRow from './ColumnActionRow';
-import ScrollNotification from '../notifications/ScrollNotification';
+import ScrollNotification from '../ScrollNotification';
 import PasteNotification from '../notifications/PasteNotification';
 import ShortcutsDialog from '../notifications/ShortcutsDialog';
 
@@ -54,7 +55,7 @@ const DataTable: React.FC = () => {
   const tableRef = useRef<HTMLDivElement>(null);
   
   // Use the custom table resize hook to handle scroll notification
-  const { tableWidth, setShowScrollNotification } = useTableResize(
+  const { setShowScrollNotification } = useTableResize(
     tableRef,
     [columns, tasks]
   );
@@ -164,7 +165,18 @@ const DataTable: React.FC = () => {
   const handleAddColumn = () => {
     // Save current state to history before modification
     dispatch({ type: 'SAVE_HISTORY' });
-    dispatch({ type: 'ADD_COLUMN' });
+    
+    // Create a new column with default values
+    const columnName = `Column ${columns.length}`;
+    const newColumn: Column = {
+      id: `column${Math.random().toString(36).substring(2, 10)}`,
+      title: columnName.toUpperCase(),
+      type: 'text',
+      width: 'w-40',
+      minWidth: 'min-w-[160px]'
+    };
+    
+    dispatch({ type: 'ADD_COLUMN', payload: newColumn });
   };
 
   /**
@@ -314,6 +326,18 @@ const DataTable: React.FC = () => {
             <ArrowUturnRightIcon className="h-5 w-5 mr-1" />
             <span>Redo</span>
           </button>
+          
+          {/* Keyboard shortcuts help button */}
+          <button 
+            className="ml-2 p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+            onClick={toggleShortcutsDialog}
+            title="Show keyboard shortcuts"
+            aria-label="Show keyboard shortcuts"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
         </div>
       </div>
       
@@ -335,18 +359,6 @@ const DataTable: React.FC = () => {
             isOpen={showShortcutsDialog} 
             onClose={toggleShortcutsDialog} 
           />
-          
-          {/* Keyboard shortcuts help button */}
-          <button 
-            className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded z-10"
-            onClick={toggleShortcutsDialog}
-            title="Show keyboard shortcuts"
-            aria-label="Show keyboard shortcuts"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
           
           {/* Table wrapper with horizontal scroll */}
           <div 

@@ -6,6 +6,7 @@
  * - Status and priority indicators
  * - Horizontal scrolling for many columns
  * - Excel/CSV data copy-paste with auto-expansion
+ * - Undo/redo functionality with 1-step history
  * 
  * Dependencies:
  * - React (useState, useRef, useEffect) for component state management
@@ -29,6 +30,9 @@ import useTableResize from '../hooks/useTableResize';
 
 // Import types
 import { Column, Task } from '../types/dataTypes';
+
+// Import icons for undo/redo
+import { ArrowUturnLeftIcon, ArrowUturnRightIcon } from '@heroicons/react/24/outline';
 
 /**
  * Initial task data with predefined tasks for demonstration
@@ -140,6 +144,17 @@ const ShortcutsDialog: React.FC<{
 };
 
 /**
+ * Interface for history tracking
+ * @interface HistoryEntry
+ * @property {Task[]} tasks - Tasks state
+ * @property {Column[]} columns - Columns state
+ */
+interface HistoryEntry {
+  tasks: Task[];
+  columns: Column[];
+}
+
+/**
  * Main DataTable component
  * Manages the state and rendering of the interactive data table
  */
@@ -174,6 +189,14 @@ const DataTable: React.FC = () => {
     { id: 'deadline', title: 'DEADLINE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
   ]);
   
+  /**
+   * History state for undo/redo functionality
+   * - past: the previous state (only one step)
+   * - future: the next state after undo (only one step)
+   */
+  const [past, setPast] = useState<HistoryEntry | null>(null);
+  const [future, setFuture] = useState<HistoryEntry | null>(null);
+  
   // Reference for the table container
   const tableRef = useRef<HTMLDivElement>(null);
   
@@ -184,12 +207,68 @@ const DataTable: React.FC = () => {
   );
 
   /**
+   * Saves the current state to history before making changes
+   */
+  const saveToHistory = () => {
+    setPast({
+      tasks: JSON.parse(JSON.stringify(tasks)),
+      columns: JSON.parse(JSON.stringify(columns))
+    });
+    setFuture(null);
+  };
+
+  /**
+   * Handles undo action
+   * Restores the previous state if available
+   */
+  const handleUndo = () => {
+    if (past) {
+      // Save current state to future
+      setFuture({
+        tasks: JSON.parse(JSON.stringify(tasks)),
+        columns: JSON.parse(JSON.stringify(columns))
+      });
+      
+      // Restore past state
+      setTasks(past.tasks);
+      setColumns(past.columns);
+      
+      // Clear past
+      setPast(null);
+    }
+  };
+
+  /**
+   * Handles redo action
+   * Restores the future state if available
+   */
+  const handleRedo = () => {
+    if (future) {
+      // Save current state to past
+      setPast({
+        tasks: JSON.parse(JSON.stringify(tasks)),
+        columns: JSON.parse(JSON.stringify(columns))
+      });
+      
+      // Restore future state
+      setTasks(future.tasks);
+      setColumns(future.columns);
+      
+      // Clear future
+      setFuture(null);
+    }
+  };
+
+  /**
    * Updates a task's value for a specific column
    * @param taskId - The unique identifier of the task
    * @param columnId - The identifier of the column being updated
    * @param value - The new value for the cell
    */
   const handleUpdateTask = (taskId: string, columnId: string, value: string) => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
     setTasks(prev => prev.map(task => {
       if (task.id === taskId) {
         return {
@@ -237,6 +316,9 @@ const DataTable: React.FC = () => {
    * Adds a new task to the table
    */
   const handleAddTask = () => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
     const newTask: Task = {
       id: uuidv4(),
       name: 'New Task',
@@ -255,6 +337,9 @@ const DataTable: React.FC = () => {
    * @param taskId - The unique identifier of the task to delete
    */
   const handleDeleteTask = (taskId: string) => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
     setTasks(prev => prev.filter(task => task.id !== taskId));
     setSelectedTasks(prev => {
       const newSet = new Set(prev);
@@ -285,6 +370,9 @@ const DataTable: React.FC = () => {
    * Adds a new column to the table at the right end
    */
   const handleAddColumn = () => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
     const newColumn = createNewColumn(`COLUMN ${columns.length}`);
     
     // Add the new column to the columns array
@@ -302,6 +390,9 @@ const DataTable: React.FC = () => {
    * @param columnIndex - Index of the column to add to the left of
    */
   const handleAddColumnLeft = (columnIndex: number) => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
     const newColumn = createNewColumn(`COLUMN L${columnIndex}`);
     
     // Insert the new column at the specified index
@@ -323,6 +414,9 @@ const DataTable: React.FC = () => {
    * @param columnIndex - Index of the column to add to the right of
    */
   const handleAddColumnRight = (columnIndex: number) => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
     const newColumn = createNewColumn(`COLUMN R${columnIndex}`);
     
     // Insert the new column after the specified index
@@ -345,8 +439,11 @@ const DataTable: React.FC = () => {
    * @param columnIndex - Index of the column to delete
    */
   const handleDeleteColumn = (columnId: string, columnIndex: number) => {
-    // Don't allow deleting the select column (index 0)
+    // Skip if trying to delete the select column (first column)
     if (columnIndex === 0) return;
+    
+    // Save current state to history before making changes
+    saveToHistory();
     
     // Remove the column from the columns array
     setColumns(prev => prev.filter(col => col.id !== columnId));
@@ -433,77 +530,75 @@ const DataTable: React.FC = () => {
    * @param startColumnId - ID of the column where paste begins
    */
   const applyPastedData = (data: string[][], startTaskId: string, startColumnId: string) => {
+    // Save current state to history before making changes
+    saveToHistory();
+    
     // Skip if no data to paste
     if (data.length === 0 || data[0].length === 0) return;
     
-    // Find starting indices
-    const startRowIndex = tasks.findIndex(task => task.id === startTaskId);
-    const startColumnIndex = columns.findIndex(column => column.id === startColumnId);
+    // Find indices to start pasting from
+    const startTaskIndex = tasks.findIndex(task => task.id === startTaskId);
+    const startColumnIndex = columns.findIndex(col => col.id === startColumnId);
     
-    // Skip if invalid starting position
-    if (startRowIndex === -1 || startColumnIndex === -1) return;
+    if (startTaskIndex === -1 || startColumnIndex === -1) return;
     
-    // Calculate required dimensions
-    const requiredRows = startRowIndex + data.length;
-    const requiredColumns = startColumnIndex + Math.max(...data.map(row => row.length));
+    // Create new tasks array to avoid mutation
+    const newTasks = [...tasks];
     
-    // Create a working copy of tasks to build upon
-    let updatedTasks = [...tasks];
-    let updatedColumns = [...columns];
-    
-    // Add new rows if needed
-    while (updatedTasks.length < requiredRows) {
-      const newTask: Task = {
+    // Ensure we have enough rows for pasted data
+    while (newTasks.length < startTaskIndex + data.length) {
+      newTasks.push({
         id: uuidv4(),
-        name: 'New Task',
-        status: 'To do',
-        priority: 'Medium',
-        startDate: 'Not set',
-        deadline: 'Not set',
-      };
-      updatedTasks.push(newTask);
+        name: '',
+        status: '',
+        priority: '',
+        startDate: '',
+        deadline: '',
+      });
     }
     
-    // Add new columns if needed
-    while (updatedColumns.length < requiredColumns) {
-      const newColumn = createNewColumn(`COLUMN ${updatedColumns.length}`);
-      updatedColumns.push(newColumn);
+    // Ensure we have enough columns for pasted data
+    let newColumns = [...columns];
+    for (let colIndex = 0; colIndex < data[0].length; colIndex++) {
+      const targetColIndex = startColumnIndex + colIndex;
       
-      // Add the new column data to each task
-      updatedTasks = updatedTasks.map(task => ({
-        ...task,
-        [newColumn.id]: 'New data',
-      }));
-    }
-    
-    // Update the tasks with pasted data
-    data.forEach((rowData, rowOffset) => {
-      const taskIndex = startRowIndex + rowOffset;
-      if (taskIndex < updatedTasks.length) {
-        rowData.forEach((cellValue, colOffset) => {
-          const columnIndex = startColumnIndex + colOffset;
-          if (columnIndex < updatedColumns.length) {
-            const columnId = updatedColumns[columnIndex].id;
-            updatedTasks[taskIndex] = {
-              ...updatedTasks[taskIndex],
-              [columnId]: cellValue
-            };
-          }
+      // If we need to add more columns
+      if (targetColIndex >= newColumns.length) {
+        const newColumn = createNewColumn(`NEW COLUMN ${targetColIndex + 1}`);
+        newColumns.push(newColumn);
+        
+        // Initialize empty value for the new column in all tasks
+        newTasks.forEach(task => {
+          task[newColumn.id] = '';
         });
       }
-    });
+    }
     
-    // Update state
-    setColumns(updatedColumns);
-    setTasks(updatedTasks);
+    // If we added columns, update the columns state
+    if (newColumns.length > columns.length) {
+      setColumns(newColumns);
+    }
+    
+    // Paste the data into the tasks
+    for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
+      const targetTaskIndex = startTaskIndex + rowIndex;
+      const targetTask = newTasks[targetTaskIndex];
+      
+      for (let colIndex = 0; colIndex < data[rowIndex].length; colIndex++) {
+        const targetColIndex = startColumnIndex + colIndex;
+        const targetColumn = newColumns[targetColIndex];
+        
+        if (targetColumn.id !== 'select') { // Skip pasting into select column
+          targetTask[targetColumn.id] = data[rowIndex][colIndex];
+        }
+      }
+    }
+    
+    // Update tasks state with the new data
+    setTasks(newTasks);
     
     // Show success notification
-    const rowCount = data.length;
-    const colCount = Math.max(...data.map(row => row.length));
-    showPasteSuccessNotification(rowCount, colCount);
-    
-    // Clear editing cell after paste
-    setEditingCell(null);
+    showPasteSuccessNotification(data.length, data[0].length);
   };
 
   // Setup keyboard event listeners for the whole component
@@ -585,96 +680,129 @@ const DataTable: React.FC = () => {
    * Uses modular components for better maintainability and performance
    */
   return (
-    // Main container with full width
-    <div className="w-full">
-      {/* Outer wrapper with relative positioning for scroll notification */}
-      <div className="relative">
-        {/* Scroll notification component for horizontal scrolling indication */}
-        <ScrollNotification show={showScrollNotification} />
-        
-        {/* Paste notification component */}
-        <PasteNotification 
-          show={showPasteNotification} 
-          message={pasteNotificationMessage} 
-        />
-        
-        {/* Shortcuts dialog */}
-        <ShortcutsDialog 
-          isOpen={showShortcutsDialog} 
-          onClose={() => setShowShortcutsDialog(false)} 
-        />
-        
-        {/* Keyboard shortcuts help button */}
-        <button 
-          className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded z-10"
-          onClick={() => setShowShortcutsDialog(true)}
-          title="Show keyboard shortcuts"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
-        
-        {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
-        <div 
-          ref={tableRef}
-          className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto inline-block"
-          style={{ maxWidth: '100%' }} /* Ensures it doesn't exceed viewport width */
-          onPaste={handlePaste} /* Handle paste events at the table level */
-          tabIndex={0} /* Make the div focusable to receive keyboard events */
-        >
-          {/* Special paste instructions when a cell is being edited */}
-          {editingCell && (
-            <div className="absolute top-0 right-0 p-2 bg-blue-50 text-xs text-blue-600 border-l border-b border-blue-200 rounded-bl-md z-10">
-              <div className="flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Paste data from Excel/CSV with Ctrl+V
-              </div>
-            </div>
-          )}
+    <div className="flex flex-col">
+      {/* Table actions row with undo/redo buttons */}
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex space-x-2">
+          {/* Undo button */}
+          <button 
+            onClick={handleUndo}
+            disabled={!past}
+            className={`px-2 py-1 rounded flex items-center ${
+              past ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'
+            }`}
+            title={past ? "Undo last action" : "Nothing to undo"}
+          >
+            <ArrowUturnLeftIcon className="h-5 w-5 mr-1" />
+            <span>Undo</span>
+          </button>
           
-          {/* Table container - w-max ensures it only takes the space it needs */}
-          <div className="w-max table-fixed">
-            {/* Table Header Component */}
-            <TableHeader 
-              columns={columns}
-              allSelected={selectedTasks.size === tasks.length && tasks.length > 0}
-              onSelectAll={handleSelectAll}
-            />
+          {/* Redo button */}
+          <button 
+            onClick={handleRedo}
+            disabled={!future}
+            className={`px-2 py-1 rounded flex items-center ${
+              future ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'
+            }`}
+            title={future ? "Redo last undone action" : "Nothing to redo"}
+          >
+            <ArrowUturnRightIcon className="h-5 w-5 mr-1" />
+            <span>Redo</span>
+          </button>
+        </div>
+      </div>
+      
+      {/* Main container with full width */}
+      <div className="w-full">
+        {/* Outer wrapper with relative positioning for scroll notification */}
+        <div className="relative">
+          {/* Scroll notification component for horizontal scrolling indication */}
+          <ScrollNotification show={showScrollNotification} />
+          
+          {/* Paste notification component */}
+          <PasteNotification 
+            show={showPasteNotification} 
+            message={pasteNotificationMessage} 
+          />
+          
+          {/* Shortcuts dialog */}
+          <ShortcutsDialog 
+            isOpen={showShortcutsDialog} 
+            onClose={() => setShowShortcutsDialog(false)} 
+          />
+          
+          {/* Keyboard shortcuts help button */}
+          <button 
+            className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded z-10"
+            onClick={() => setShowShortcutsDialog(true)}
+            title="Show keyboard shortcuts"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+          
+          {/* Table wrapper with horizontal scroll - Using inline-block to fix width to content */}
+          <div 
+            ref={tableRef}
+            className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto inline-block"
+            style={{ maxWidth: '100%' }} /* Ensures it doesn't exceed viewport width */
+            onPaste={handlePaste} /* Handle paste events at the table level */
+            tabIndex={0} /* Make the div focusable to receive keyboard events */
+          >
+            {/* Special paste instructions when a cell is being edited */}
+            {editingCell && (
+              <div className="absolute top-0 right-0 p-2 bg-blue-50 text-xs text-blue-600 border-l border-b border-blue-200 rounded-bl-md z-10">
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Paste data from Excel/CSV with Ctrl+V
+                </div>
+              </div>
+            )}
             
-            {/* Column Action Row - Provides column manipulation controls */}
-            <ColumnActionRow
-              columns={columns}
-              onAddColumnLeft={handleAddColumnLeft}
-              onAddColumnRight={handleAddColumnRight}
-              onDeleteColumn={handleDeleteColumn}
-            />
-
-            {/* Table Body - Map through tasks to create rows */}
-            {tasks.map((task, index) => (
-              <TableRow
-                key={task.id}
-                task={task}
+            {/* Table container - w-max ensures it only takes the space it needs */}
+            <div className="w-max table-fixed">
+              {/* Table Header Component */}
+              <TableHeader 
                 columns={columns}
-                isSelected={selectedTasks.has(task.id)}
-                onSelectTask={handleSelectTask}
-                onAddColumn={handleAddColumn}
-                onDeleteTask={handleDeleteTask}
-                onUpdateTask={handleUpdateTask}
-                isLastRow={index === tasks.length - 1}
-                onSetEditingCell={handleSetEditingCell}
-                onClearEditingCell={handleClearEditingCell}
-                isEditing={editingCell?.taskId === task.id ? editingCell.columnId : null}
+                allSelected={selectedTasks.size === tasks.length && tasks.length > 0}
+                onSelectAll={handleSelectAll}
               />
-            ))}
-            
-            {/* Add row button integrated into the table */}
-            <div className="flex border-t border-gray-200">
-              <div className="flex-1 py-2 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 cursor-pointer" onClick={handleAddTask}>
-                <div className="flex items-center justify-center text-blue-500">
-                  <span className="mr-1 font-medium">+</span> Add row
+              
+              {/* Column Action Row - Provides column manipulation controls */}
+              <ColumnActionRow
+                columns={columns}
+                onAddColumnLeft={handleAddColumnLeft}
+                onAddColumnRight={handleAddColumnRight}
+                onDeleteColumn={handleDeleteColumn}
+              />
+
+              {/* Table Body - Map through tasks to create rows */}
+              {tasks.map((task, index) => (
+                <TableRow
+                  key={task.id}
+                  task={task}
+                  columns={columns}
+                  isSelected={selectedTasks.has(task.id)}
+                  onSelectTask={handleSelectTask}
+                  onAddColumn={handleAddColumn}
+                  onDeleteTask={handleDeleteTask}
+                  onUpdateTask={handleUpdateTask}
+                  isLastRow={index === tasks.length - 1}
+                  onSetEditingCell={handleSetEditingCell}
+                  onClearEditingCell={handleClearEditingCell}
+                  isEditing={editingCell?.taskId === task.id ? editingCell.columnId : null}
+                />
+              ))}
+              
+              {/* Add row button integrated into the table */}
+              <div className="flex border-t border-gray-200">
+                <div className="flex-1 py-2 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 cursor-pointer" onClick={handleAddTask}>
+                  <div className="flex items-center justify-center text-blue-500">
+                    <span className="mr-1 font-medium">+</span> Add row
+                  </div>
                 </div>
               </div>
             </div>

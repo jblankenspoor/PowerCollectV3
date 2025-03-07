@@ -1,4 +1,4 @@
-import React, { useState, KeyboardEvent, useRef, useEffect } from 'react';
+import React, { useState, KeyboardEvent } from 'react';
 import { Column, Task } from '../types/dataTypes';
 import ActionCell from './ActionCell';
 
@@ -52,9 +52,6 @@ const TableRow: React.FC<TableRowProps> = ({
   onClearEditingCell,
   isEditing = null
 }) => {
-  // State for drag and drop between columns
-  const [dragOver, setDragOver] = useState<string | null>(null);
-
   // State for tracking which cell is being hovered
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
 
@@ -277,7 +274,6 @@ const TableRow: React.FC<TableRowProps> = ({
       {columns.map(column => {
         const isSelectColumn = column.type === 'select';
         const isHovered = hoveredCell === column.id;
-        const isEditingThisCell = isEditing === column.id;
         
         // Extract pixel width from minWidth CSS class for fixed sizing
         const widthMatch = column.minWidth ? column.minWidth.match(/min-w-\[(\d+)px\]/) : null;

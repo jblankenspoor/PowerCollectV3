@@ -44,7 +44,7 @@ function App() {
         
         {/* Version number in the bottom left corner */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v2.1.5
+          v3.0.0
         </div>
       </div>
     </TableProvider>

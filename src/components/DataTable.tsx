@@ -269,15 +269,22 @@ const DataTable: React.FC = () => {
     // Save current state to history before making changes
     saveToHistory();
     
-    setTasks(prev => prev.map(task => {
-      if (task.id === taskId) {
-        return {
-          ...task,
-          [columnId]: value
-        };
-      }
-      return task;
-    }));
+    // Create complete copies of the current state
+    let updatedTasks = JSON.parse(JSON.stringify(tasks));
+    
+    // Find the task to update
+    const taskIndex = updatedTasks.findIndex((task: Task) => task.id === taskId);
+    
+    if (taskIndex !== -1) {
+      // Update the task with the new value
+      updatedTasks[taskIndex] = {
+        ...updatedTasks[taskIndex],
+        [columnId]: value
+      };
+      
+      // Update the tasks state all at once
+      setTasks(updatedTasks);
+    }
   };
 
   /**

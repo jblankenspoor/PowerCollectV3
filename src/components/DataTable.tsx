@@ -226,8 +226,8 @@ const DataTable: React.FC = () => {
       const contentWidth = tableContainer.scrollWidth;
       const containerWidth = tableRef.current.parentElement.clientWidth;
       
-      // Instead of setting explicit width, maintain stable width through CSS classes
-      // that we've already set (w-full). This prevents width fluctuation
+      // Let the fit-content and w-fit classes handle the width naturally
+      // This prevents the extra space at the end of the table
       
       // Restore the scroll position
       scrollElement.scrollLeft = currentScrollLeft;
@@ -857,7 +857,7 @@ const DataTable: React.FC = () => {
             className="border border-gray-200 rounded-md bg-white shadow-sm overflow-x-auto"
             style={{ 
               maxWidth: '100%',
-              width: '100%' /* Change from inline style width to 100% width to prevent shrinking */
+              width: 'fit-content' /* Change from 100% to fit-content to remove extra space */
             }}
             onPaste={handlePaste} /* Handle paste events at the table level */
             tabIndex={0} /* Make the div focusable to receive keyboard events */
@@ -874,8 +874,8 @@ const DataTable: React.FC = () => {
               </div>
             )}
             
-            {/* Table container - changed from w-max to w-full to maintain stable width */}
-            <div className="w-full table-fixed">
+            {/* Table container - maintain width-specific class for proper sizing */}
+            <div className="w-fit table-fixed">
               {/* Table Header Component */}
               <TableHeader 
                 columns={columns}

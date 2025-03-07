@@ -20,6 +20,7 @@ interface ActionCellProps {
  * - Contains action buttons for a table row
  * - Includes add column and delete task buttons with tooltips
  * - Styled consistently with the table design
+ * - Width is fixed at 130px to maintain consistent layout
  * 
  * @param {ActionCellProps} props - Component props
  * @returns {JSX.Element} Rendered component
@@ -31,7 +32,7 @@ interface ActionCellProps {
  */
 const ActionCell: React.FC<ActionCellProps> = ({ taskId, onAddColumn, onDeleteTask }) => {
   return (
-    <div className="w-[130px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-0 p-4">
+    <div className="w-[130px] bg-gray-50 border-l border-gray-200 flex-shrink-0 flex items-center justify-center gap-1 p-4">
       {/* Add column button with tooltip */}
       <TooltipButton
         onClick={onAddColumn}

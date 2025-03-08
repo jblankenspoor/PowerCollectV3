@@ -4,12 +4,18 @@
  * Renders the header row of the data table with editable column titles
  * 
  * @module TableHeader
- * @version 1.2.0 - Changed to single-click editing and removed tooltips
+ * @version 1.3.0 - Added column resizing based on content width
  */
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Column } from '../../types/dataTypes';
-import { getPixelWidthFromClass } from '../../utils/tableUtils';
+import { 
+  getPixelWidthFromClass,
+  getPixelWidthStringFromClass,
+  measureTextWidth, 
+  pixelWidthToMinWidthClass,
+  pixelWidthToWidthClass
+} from '../../utils/tableUtils';
 import { useTableContext } from '../../context/TableContext';
 
 /**
@@ -24,6 +30,7 @@ interface TableHeaderProps {
 /**
  * TableHeader component that displays column headers and select all button
  * Column titles can be edited by clicking on them
+ * Columns automatically resize to fit content
  * 
  * @param props - Component props
  * @returns JSX Element
@@ -55,17 +62,51 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, allSelected, onSelec
   };
 
   /**
-   * Saves the edited column title
+   * Saves the edited column title and adjusts column width if needed
    */
   const handleSave = () => {
     if (editingColumnId) {
-      dispatch({
-        type: 'UPDATE_COLUMN_TITLE',
-        payload: {
-          columnId: editingColumnId,
-          title: editValue
-        }
-      });
+      const column = columns.find(col => col.id === editingColumnId);
+      if (!column) {
+        setEditingColumnId(null);
+        return;
+      }
+      
+      // Calculate width needed for the new title
+      const titleUpperCase = editValue.toUpperCase();
+      const neededWidth = measureTextWidth(titleUpperCase);
+      
+      // Get current width from minWidth class
+      const currentWidth = getPixelWidthFromClass(column.minWidth);
+      
+      // Only update width if new title needs more space
+      if (neededWidth > currentWidth) {
+        const newMinWidthClass = pixelWidthToMinWidthClass(neededWidth);
+        const newWidthClass = pixelWidthToWidthClass(neededWidth);
+        
+        // Update column with new width classes and title
+        dispatch({
+          type: 'UPDATE_COLUMN',
+          payload: {
+            columnId: editingColumnId,
+            updates: {
+              title: titleUpperCase,
+              width: newWidthClass,
+              minWidth: newMinWidthClass
+            }
+          }
+        });
+      } else {
+        // Just update the title if width is sufficient
+        dispatch({
+          type: 'UPDATE_COLUMN_TITLE',
+          payload: {
+            columnId: editingColumnId,
+            title: editValue
+          }
+        });
+      }
+      
       setEditingColumnId(null);
     }
   };
@@ -105,7 +146,7 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, allSelected, onSelec
       {/* Map through columns to create header cells (skip the first select column as we handle it separately) */}
       {columns.slice(1).map(column => {
         // Get pixel width from minWidth class
-        const pixelWidth = getPixelWidthFromClass(column.minWidth);
+        const pixelWidth = getPixelWidthStringFromClass(column.minWidth);
         
         return (
           <div 

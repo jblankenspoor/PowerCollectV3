@@ -2,6 +2,7 @@
  * Utility functions for table operations
  * 
  * @module tableUtils
+ * @version 1.1.0 - Added text width measurement functionality
  */
 
 /**
@@ -63,9 +64,22 @@ export const parseClipboardData = (clipboardText: string): string[][] => {
  * Calculate pixel width from a minWidth CSS class
  * 
  * @param minWidthClass - CSS class string like "min-w-[160px]"
- * @returns Pixel width value or 'auto' if not found
+ * @returns Pixel width value (number) or 0 if not found
  */
-export const getPixelWidthFromClass = (minWidthClass?: string): string => {
+export const getPixelWidthFromClass = (minWidthClass?: string): number => {
+  if (!minWidthClass) return 0;
+  
+  const widthMatch = minWidthClass.match(/min-w-\[(\d+)px\]/);
+  return widthMatch ? parseInt(widthMatch[1], 10) : 0;
+};
+
+/**
+ * Get pixel width as CSS string from a minWidth CSS class
+ * 
+ * @param minWidthClass - CSS class string like "min-w-[160px]"
+ * @returns Pixel width as CSS value (e.g. "160px") or "auto" if not found
+ */
+export const getPixelWidthStringFromClass = (minWidthClass?: string): string => {
   if (!minWidthClass) return 'auto';
   
   const widthMatch = minWidthClass.match(/min-w-\[(\d+)px\]/);
@@ -123,4 +137,53 @@ export const formatDateSafely = (dateString: string): string => {
     console.error('Error formatting date:', error);
     return '';
   }
+};
+
+/**
+ * Calculate the width needed for text in pixels
+ * This uses a canvas to measure text width based on font properties
+ * 
+ * @param text - Text to measure
+ * @param fontStyle - CSS font style (default is "normal 14px sans-serif")
+ * @returns Width in pixels
+ */
+export const measureTextWidth = (text: string, fontStyle: string = "bold 14px sans-serif"): number => {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (!context) return text.length * 8; // Fallback if canvas not supported
+  
+  context.font = fontStyle;
+  const metrics = context.measureText(text);
+  
+  // Add padding for some space on both sides
+  return Math.ceil(metrics.width) + 32; // 16px padding on each side
+};
+
+/**
+ * Convert pixel width to Tailwind min-width class
+ * 
+ * @param pixelWidth - Width in pixels
+ * @returns Tailwind class string
+ */
+export const pixelWidthToMinWidthClass = (pixelWidth: number): string => {
+  return `min-w-[${pixelWidth}px]`;
+};
+
+/**
+ * Convert pixel width to Tailwind width class
+ * 
+ * @param pixelWidth - Width in pixels
+ * @returns Tailwind class string
+ */
+export const pixelWidthToWidthClass = (pixelWidth: number): string => {
+  // Standard Tailwind width increments
+  const widthIncrements = [32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96];
+  
+  // Find the closest increment that's at least as large as our needed width
+  let suitableWidth = widthIncrements.find(w => w >= pixelWidth / 4);
+  
+  // Default to largest if no suitable width found
+  if (!suitableWidth) suitableWidth = widthIncrements[widthIncrements.length - 1];
+  
+  return `w-${suitableWidth}`; 
 }; 

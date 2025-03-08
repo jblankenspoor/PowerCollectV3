@@ -5,7 +5,7 @@
  * Uses useReducer for more predictable state management.
  * 
  * @module TableContext
- * @version 1.1.0 - Added editable header titles functionality
+ * @version 1.2.0 - Added column width adjustment functionality
  */
 
 import React, { createContext, useContext, useReducer, ReactNode, Dispatch } from 'react';
@@ -108,6 +108,7 @@ export type TableAction =
   | { type: 'ADD_COLUMN_RIGHT'; payload: number }
   | { type: 'DELETE_COLUMN'; payload: { columnId: string; columnIndex: number } }
   | { type: 'UPDATE_COLUMN_TITLE'; payload: { columnId: string; title: string } }
+  | { type: 'UPDATE_COLUMN'; payload: { columnId: string; updates: Partial<Column> } }
   | { type: 'SET_EDITING_CELL'; payload: { taskId: string; columnId: string } | null }
   | { type: 'SHOW_PASTE_NOTIFICATION'; payload: { message: string } }
   | { type: 'HIDE_PASTE_NOTIFICATION' }
@@ -277,6 +278,19 @@ function tableReducer(state: TableState, action: TableAction): TableState {
         columns: state.columns.map(column => 
           column.id === columnId 
             ? { ...column, title: title.toUpperCase() }
+            : column
+        )
+      };
+    }
+
+    case 'UPDATE_COLUMN': {
+      const { columnId, updates } = action.payload;
+      
+      return {
+        ...state,
+        columns: state.columns.map(column => 
+          column.id === columnId 
+            ? { ...column, ...updates }
             : column
         )
       };

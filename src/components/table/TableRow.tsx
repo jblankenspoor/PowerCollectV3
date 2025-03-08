@@ -4,13 +4,15 @@
  * Renders a row in the data table with appropriate cells for each column
  * 
  * @module TableRow
+ * @version 1.1.0 - Updated to use revised width utility functions
  */
 
 import React, { useState } from 'react';
 import { Column, Task } from '../../types/dataTypes';
 import ActionCell from '../ActionCell';
 import CellFactory from '../cells/CellFactory';
-import { getPixelWidthFromClass } from '../../utils/tableUtils';
+import { getPixelWidthStringFromClass, measureTextWidth, pixelWidthToMinWidthClass, pixelWidthToWidthClass } from '../../utils/tableUtils';
+import { useTableContext } from '../../context/TableContext';
 
 /**
  * Props for the TableRow component
@@ -50,14 +52,44 @@ const TableRow: React.FC<TableRowProps> = ({
 }) => {
   // State for tracking which cell is being hovered
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
+  const { dispatch } = useTableContext();
 
   /**
-   * Handles cell value changes
+   * Handles cell value changes and checks if column width needs adjusting
    * @param columnId - The identifier of the column being edited
    * @param value - The new value for the cell
    */
   const handleCellChange = (columnId: string, value: string) => {
     onUpdateTask(task.id, columnId, value);
+    
+    // Check if we need to adjust column width
+    const column = columns.find(col => col.id === columnId);
+    if (column) {
+      // Calculate width needed for the content
+      const neededWidth = measureTextWidth(value);
+      
+      // Get current width from minWidth class
+      const currentWidth = getPixelWidthStringFromClass(column.minWidth);
+      const currentWidthNumber = parseInt(currentWidth === 'auto' ? '0' : currentWidth, 10);
+      
+      // Only update width if content needs more space
+      if (neededWidth > currentWidthNumber) {
+        const newMinWidthClass = pixelWidthToMinWidthClass(neededWidth);
+        const newWidthClass = pixelWidthToWidthClass(neededWidth);
+        
+        // Update column with new width classes
+        dispatch({
+          type: 'UPDATE_COLUMN',
+          payload: {
+            columnId,
+            updates: {
+              width: newWidthClass,
+              minWidth: newMinWidthClass
+            }
+          }
+        });
+      }
+    }
   };
 
   /**
@@ -113,7 +145,7 @@ const TableRow: React.FC<TableRowProps> = ({
         const isEditingThisCell = isEditing === column.id;
         
         // Get pixel width from minWidth class
-        const pixelWidth = getPixelWidthFromClass(column.minWidth);
+        const pixelWidth = getPixelWidthStringFromClass(column.minWidth);
         
         return (
           <div 

@@ -8,6 +8,7 @@
 
 import { TableProvider } from './context/TableContext';
 import DataTable from './components/table/DataTable';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 /**
  * App component that provides context and renders the main UI
@@ -46,6 +47,7 @@ function App() {
           v3.0.0
         </div>
       </div>
+      <SpeedInsights />
     </TableProvider>
   );
 }

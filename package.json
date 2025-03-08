@@ -23,6 +23,7 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "@types/node": "^22.13.10",
     "@types/uuid": "^9.0.7",
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.16",

@@ -4,7 +4,7 @@
  * Renders the header row of the data table with editable column titles
  * 
  * @module TableHeader
- * @version 1.1.0 - Added editable column titles functionality
+ * @version 1.2.0 - Changed to single-click editing and removed tooltips
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -23,7 +23,7 @@ interface TableHeaderProps {
 
 /**
  * TableHeader component that displays column headers and select all button
- * Column titles can be edited by double-clicking on them
+ * Column titles can be edited by clicking on them
  * 
  * @param props - Component props
  * @returns JSX Element
@@ -43,10 +43,10 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, allSelected, onSelec
   }, [editingColumnId]);
 
   /**
-   * Handles double-click on a column header to start editing
+   * Handles click on a column header to start editing
    * @param column - The column being edited
    */
-  const handleDoubleClick = (column: Column) => {
+  const handleClick = (column: Column) => {
     // Don't allow editing the select column or actions column
     if (column.id === 'select') return;
     
@@ -110,14 +110,14 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, allSelected, onSelec
         return (
           <div 
             key={column.id} 
-            className={`${column.width} ${column.minWidth || ''} p-4 flex items-center justify-start font-medium text-gray-500 text-sm whitespace-nowrap flex-shrink-0 ${column.id !== 'select' ? 'cursor-pointer hover:bg-gray-100 group' : ''}`}
+            className={`${column.width} ${column.minWidth || ''} p-4 flex items-center justify-start font-medium text-gray-500 text-sm whitespace-nowrap flex-shrink-0 ${column.id !== 'select' ? 'cursor-pointer hover:bg-gray-100' : ''}`}
             style={{
               width: pixelWidth,
               minWidth: pixelWidth,
               maxWidth: pixelWidth,
               boxSizing: 'border-box' // Ensure padding is included in width calculation
             }}
-            onDoubleClick={() => handleDoubleClick(column)}
+            onClick={() => handleClick(column)}
           >
             {editingColumnId === column.id ? (
               <input
@@ -133,11 +133,6 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, allSelected, onSelec
             ) : (
               <div className="flex items-center">
                 <span>{column.title}</span>
-                {column.id !== 'select' && (
-                  <span className="ml-1 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                    (Double-click to edit)
-                  </span>
-                )}
               </div>
             )}
           </div>

@@ -4,7 +4,7 @@
  * Renders the header row of the data table with editable column titles
  * 
  * @module TableHeader
- * @version 1.4.1 - Disabled Select All button with tooltip
+ * @version 1.4.3 - Fixed TypeScript errors for deployment
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -20,6 +20,7 @@ import { useTableContext } from '../../context/TableContext';
 
 /**
  * Props for the TableHeader component
+ * Note: allSelected and onSelectAll are kept in the interface for future implementation
  */
 interface TableHeaderProps {
   columns: Column[];
@@ -35,7 +36,7 @@ interface TableHeaderProps {
  * @param props - Component props
  * @returns JSX Element
  */
-const TableHeader: React.FC<TableHeaderProps> = ({ columns, allSelected, onSelectAll }) => {
+const TableHeader: React.FC<TableHeaderProps> = ({ columns }) => {
   const { dispatch } = useTableContext();
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');

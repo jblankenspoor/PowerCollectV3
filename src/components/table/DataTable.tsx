@@ -11,7 +11,7 @@
  * - Data preview before import
  * 
  * @module DataTable
- * @version 1.1.3 - UI improvements and button fixes
+ * @version 1.1.5 - Fixed TypeScript errors for deployment
  */
 
 import React, { useRef, useEffect } from 'react';
@@ -301,13 +301,6 @@ const DataTable: React.FC = () => {
    */
   const handleImportClick = () => {
     dispatch({ type: 'TOGGLE_IMPORT_DIALOG', payload: true });
-  };
-
-  /**
-   * Handle export button click
-   */
-  const handleExportClick = () => {
-    dispatch({ type: 'TOGGLE_EXPORT_DIALOG', payload: true });
   };
 
   /**

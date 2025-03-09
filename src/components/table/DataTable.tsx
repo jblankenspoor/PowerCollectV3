@@ -7,12 +7,15 @@
  * - Horizontal scrolling for many columns
  * - Excel/CSV data copy-paste with auto-expansion
  * - Undo/redo functionality with 1-step history
+ * - Import/export functionality for Excel and CSV files
+ * - Import preview for data validation
  * 
  * @module DataTable
+ * @version 1.2.0 - Added import preview functionality
  */
 
 import React, { useRef, useEffect } from 'react';
-import { ArrowUturnLeftIcon, ArrowUturnRightIcon } from '@heroicons/react/24/outline';
+import { ArrowUturnLeftIcon, ArrowUturnRightIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { Column } from '../../types/dataTypes';
 
 // Import refactored components
@@ -22,6 +25,7 @@ import ColumnActionRow from './ColumnActionRow';
 import ScrollNotification from '../ScrollNotification';
 import PasteNotification from '../notifications/PasteNotification';
 import ShortcutsDialog from '../notifications/ShortcutsDialog';
+import { ImportDataDialog, ExportDataDialog, ImportPreviewDialog } from '../dialogs';
 
 // Import context and utilities
 import { useTableContext } from '../../context/TableContext';
@@ -289,56 +293,121 @@ const DataTable: React.FC = () => {
   };
 
   /**
+   * Handle import button click
+   */
+  const handleImportClick = () => {
+    dispatch({ type: 'TOGGLE_IMPORT_DIALOG', payload: true });
+  };
+
+  /**
+   * Handle export button click
+   */
+  const handleExportClick = () => {
+    dispatch({ type: 'TOGGLE_EXPORT_DIALOG', payload: true });
+  };
+  
+  /**
+   * Handle import preview confirmation
+   */
+  const handleImportConfirm = () => {
+    if (state.importPreviewData) {
+      // Save current state to history before import
+      dispatch({ type: 'SAVE_HISTORY' });
+      
+      // Ensure all columns have proper width settings for alignment
+      const columnsWithConsistentWidth = state.importPreviewData.columns.map(column => ({
+        ...column,
+        width: column.width || 'w-40',
+        minWidth: column.minWidth || 'min-w-[160px]' 
+      }));
+      
+      // Import the data with properly formatted columns
+      dispatch({
+        type: 'IMPORT_DATA',
+        payload: {
+          tasks: state.importPreviewData.tasks,
+          columns: columnsWithConsistentWidth
+        }
+      });
+      
+      // Show success notification
+      dispatch({
+        type: 'SHOW_PASTE_NOTIFICATION',
+        payload: {
+          message: `Successfully imported ${state.importPreviewData.tasks.length} rows of data.`
+        }
+      });
+    }
+  };
+  
+  /**
+   * Handle import preview cancellation
+   */
+  const handleImportCancel = () => {
+    dispatch({ type: 'TOGGLE_IMPORT_PREVIEW_DIALOG', payload: false });
+    dispatch({ type: 'SET_IMPORT_PREVIEW_DATA', payload: null });
+  };
+
+  /**
    * Render method for the DataTable component
    * Uses modular components for better maintainability and performance
    */
   return (
-    <div className="flex flex-col">
-      {/* Table actions row with undo/redo buttons */}
-      <div className="flex justify-between items-center mb-2">
+    <div className="relative w-full">
+      {/* Action buttons */}
+      <div className="flex justify-between items-center mb-3">
         <div className="flex space-x-2">
-          {/* Undo button */}
+          {/* Existing undo/redo buttons */}
           <button 
             onClick={handleUndo}
             disabled={!past}
-            className={`px-2 py-1 rounded flex items-center ${
-              past ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'
+            className={`p-1.5 rounded ${
+              past ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
             }`}
-            title={past ? "Undo last action" : "Nothing to undo"}
-            aria-label={past ? "Undo last action" : "Nothing to undo"}
-            aria-disabled={!past}
+            title="Undo (Ctrl+Z)"
           >
-            <ArrowUturnLeftIcon className="h-5 w-5 mr-1" />
-            <span>Undo</span>
+            <ArrowUturnLeftIcon className="h-5 w-5" />
           </button>
-          
-          {/* Redo button */}
-          <button 
+          <button
             onClick={handleRedo}
             disabled={!future}
-            className={`px-2 py-1 rounded flex items-center ${
-              future ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'
+            className={`p-1.5 rounded ${
+              future ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed'
             }`}
-            title={future ? "Redo last undone action" : "Nothing to redo"}
-            aria-label={future ? "Redo last undone action" : "Nothing to redo"}
-            aria-disabled={!future}
+            title="Redo (Ctrl+Y)"
           >
-            <ArrowUturnRightIcon className="h-5 w-5 mr-1" />
-            <span>Redo</span>
+            <ArrowUturnRightIcon className="h-5 w-5" />
           </button>
           
-          {/* Keyboard shortcuts help button */}
-          <button 
-            className="ml-2 p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-            onClick={toggleShortcutsDialog}
-            title="Show keyboard shortcuts"
-            aria-label="Show keyboard shortcuts"
+          {/* Import/Export buttons */}
+          <div className="border-l border-gray-300 mx-2 h-6 self-center"></div>
+          
+          <button
+            onClick={handleImportClick}
+            className="p-1.5 rounded text-gray-700 hover:bg-gray-100 flex items-center"
+            title="Import data from Excel or CSV"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <ArrowUpTrayIcon className="h-5 w-5" />
+            <span className="ml-1 text-sm">Import</span>
+          </button>
+          
+          <button
+            onClick={handleExportClick}
+            className="p-1.5 rounded text-gray-700 hover:bg-gray-100 flex items-center"
+            title="Export data to Excel or CSV"
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" />
+            <span className="ml-1 text-sm">Export</span>
           </button>
         </div>
+        
+        {/* Existing shortcuts button */}
+        <button
+          onClick={toggleShortcutsDialog}
+          className="text-sm text-gray-500 hover:text-gray-700"
+        >
+          Keyboard Shortcuts
+        </button>
       </div>
       
       {/* Main container with full width */}
@@ -346,7 +415,9 @@ const DataTable: React.FC = () => {
         {/* Outer wrapper with relative positioning for scroll notification */}
         <div className="relative">
           {/* Scroll notification component for horizontal scrolling indication */}
-          <ScrollNotification show={showScrollNotification} />
+          <ScrollNotification 
+            show={showScrollNotification} 
+          />
           
           {/* Paste notification component */}
           <PasteNotification 
@@ -436,6 +507,37 @@ const DataTable: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Notifications and Dialogs */}
+      {state.showPasteNotification && (
+        <PasteNotification 
+          show={state.showPasteNotification} 
+          message={state.pasteNotificationMessage} 
+        />
+      )}
+      
+      {state.showShortcutsDialog && (
+        <ShortcutsDialog 
+          isOpen={state.showShortcutsDialog} 
+          onClose={() => dispatch({ type: 'TOGGLE_SHORTCUTS_DIALOG', payload: false })} 
+        />
+      )}
+      
+      {state.showScrollNotification && (
+        <ScrollNotification 
+          show={state.showScrollNotification} 
+        />
+      )}
+      
+      {/* Import/Export Dialogs */}
+      <ImportDataDialog />
+      <ExportDataDialog />
+      <ImportPreviewDialog 
+        isOpen={state.showImportPreviewDialog}
+        previewData={state.importPreviewData}
+        onConfirm={handleImportConfirm}
+        onCancel={handleImportCancel}
+      />
     </div>
   );
 };

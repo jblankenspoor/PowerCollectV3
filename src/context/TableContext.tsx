@@ -5,7 +5,7 @@
  * Uses useReducer for more predictable state management.
  * 
  * @module TableContext
- * @version 1.2.0 - Added column width adjustment functionality
+ * @version 1.2.2 - Added import preview functionality
  */
 
 import React, { createContext, useContext, useReducer, ReactNode, Dispatch } from 'react';
@@ -63,6 +63,15 @@ interface HistoryEntry {
 }
 
 /**
+ * Interface for import preview data
+ */
+interface ImportPreviewData {
+  tasks: Task[];
+  columns: Column[];
+  sourceFormat: 'excel' | 'csv';
+}
+
+/**
  * Table state interface
  */
 interface TableState {
@@ -76,6 +85,13 @@ interface TableState {
   pasteNotificationMessage: string;
   showShortcutsDialog: boolean;
   showScrollNotification: boolean;
+  showImportDialog: boolean;
+  showExportDialog: boolean;
+  showImportPreviewDialog: boolean;
+  importPreviewData: ImportPreviewData | null;
+  importErrors: string[];
+  isImporting: boolean;
+  isExporting: boolean;
 }
 
 /**
@@ -92,6 +108,13 @@ const initialState: TableState = {
   pasteNotificationMessage: '',
   showShortcutsDialog: false,
   showScrollNotification: false,
+  showImportDialog: false,
+  showExportDialog: false,
+  showImportPreviewDialog: false,
+  importPreviewData: null,
+  importErrors: [],
+  isImporting: false,
+  isExporting: false,
 };
 
 /**
@@ -117,7 +140,15 @@ export type TableAction =
   | { type: 'SAVE_HISTORY' }
   | { type: 'UNDO' }
   | { type: 'REDO' }
-  | { type: 'APPLY_PASTED_DATA'; payload: { data: string[][]; startTaskId: string; startColumnId: string } };
+  | { type: 'APPLY_PASTED_DATA'; payload: { data: string[][]; startTaskId: string; startColumnId: string } }
+  | { type: 'TOGGLE_IMPORT_DIALOG'; payload?: boolean }
+  | { type: 'TOGGLE_EXPORT_DIALOG'; payload?: boolean }
+  | { type: 'TOGGLE_IMPORT_PREVIEW_DIALOG'; payload?: boolean }
+  | { type: 'SET_IMPORT_PREVIEW_DATA'; payload: ImportPreviewData | null }
+  | { type: 'SET_IMPORT_ERRORS'; payload: string[] }
+  | { type: 'SET_IMPORTING'; payload: boolean }
+  | { type: 'SET_EXPORTING'; payload: boolean }
+  | { type: 'IMPORT_DATA'; payload: { tasks: Task[]; columns: Column[] } };
 
 /**
  * Reducer function for table state
@@ -438,6 +469,75 @@ function tableReducer(state: TableState, action: TableAction): TableState {
         columns: newColumns
       };
     }
+
+    case 'TOGGLE_IMPORT_DIALOG':
+      return {
+        ...state,
+        showImportDialog: action.payload !== undefined ? action.payload : !state.showImportDialog,
+        importErrors: action.payload === false ? [] : state.importErrors,
+        // Reset preview data when closing the dialog
+        importPreviewData: action.payload === false ? null : state.importPreviewData
+      };
+    
+    case 'TOGGLE_EXPORT_DIALOG':
+      return {
+        ...state,
+        showExportDialog: action.payload !== undefined ? action.payload : !state.showExportDialog
+      };
+    
+    case 'TOGGLE_IMPORT_PREVIEW_DIALOG':
+      return {
+        ...state,
+        showImportPreviewDialog: action.payload !== undefined ? action.payload : !state.showImportPreviewDialog
+      };
+      
+    case 'SET_IMPORT_PREVIEW_DATA':
+      return {
+        ...state,
+        importPreviewData: action.payload,
+        // When setting preview data, automatically show the preview dialog
+        showImportPreviewDialog: action.payload !== null,
+        // Hide the import dialog if showing preview
+        showImportDialog: action.payload !== null ? false : state.showImportDialog
+      };
+    
+    case 'SET_IMPORT_ERRORS':
+      return {
+        ...state,
+        importErrors: action.payload
+      };
+    
+    case 'SET_IMPORTING':
+      return {
+        ...state,
+        isImporting: action.payload
+      };
+    
+    case 'SET_EXPORTING':
+      return {
+        ...state,
+        isExporting: action.payload
+      };
+    
+    case 'IMPORT_DATA':
+      // Save current state to history before import
+      const historyCopy = {
+        tasks: [...state.tasks],
+        columns: [...state.columns]
+      };
+      
+      return {
+        ...state,
+        tasks: action.payload.tasks,
+        columns: action.payload.columns,
+        past: historyCopy,
+        future: null,
+        showImportDialog: false,
+        showImportPreviewDialog: false,
+        importPreviewData: null,
+        importErrors: [],
+        isImporting: false
+      };
 
     default:
       return state;

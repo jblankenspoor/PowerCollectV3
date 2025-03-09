@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 3.1.0 - Added editable header titles with real-time column resizing
+ * @version 3.2.2 - Fixed import preview and alignment issues
  */
 
 import { TableProvider } from './context/TableContext';
@@ -45,7 +45,7 @@ function App() {
         
         {/* Version number in the bottom left corner */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v3.1.0
+          v3.2.2
         </div>
       </div>
       <SpeedInsights />

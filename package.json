@@ -1,6 +1,6 @@
 {
   "name": "powercollectv3",
-  "version": "1.0.0",
+  "version": "3.2.2",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
@@ -14,13 +14,16 @@
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
+    "@types/file-saver": "^2.0.7",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "@vercel/speed-insights": "^1.2.0",
+    "file-saver": "^2.0.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "typescript": "^5.0.2",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

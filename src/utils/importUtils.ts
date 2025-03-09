@@ -5,6 +5,7 @@
  * with validation and error handling.
  * 
  * @module importUtils
+ * @version 1.0.1 - Enhanced error handling and debugging
  */
 
 import * as XLSX from 'xlsx';
@@ -35,30 +36,69 @@ export const parseExcelFile = async (file: File): Promise<{data: any[], metadata
     reader.onload = (e: ProgressEvent<FileReader>) => {
       try {
         const data = e.target?.result;
+        if (!data) {
+          console.error('No data read from file');
+          reject(new Error('No data could be read from the file'));
+          return;
+        }
+        
+        console.log('File read successfully, parsing workbook...');
         const workbook = XLSX.read(data, { type: 'array' });
+        
+        if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+          console.error('Invalid Excel file structure');
+          reject(new Error('Invalid Excel file structure'));
+          return;
+        }
+        
+        console.log('Workbook parsed, sheet names:', workbook.SheetNames);
         
         // Get first sheet (data)
         const firstSheetName = workbook.SheetNames[0];
         const dataWorksheet = workbook.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(dataWorksheet);
         
-        // Get second sheet (metadata) if it exists
-        let metadata: any[] = [];
-        if (workbook.SheetNames.length > 1 && workbook.SheetNames[1] === 'ColumnMetadata') {
-          const metadataWorksheet = workbook.Sheets[workbook.SheetNames[1]];
-          metadata = XLSX.utils.sheet_to_json(metadataWorksheet);
+        if (!dataWorksheet) {
+          console.error('No worksheet found');
+          reject(new Error('No worksheet found in Excel file'));
+          return;
         }
         
-        resolve({ data: jsonData, metadata });
+        // Try to convert to JSON
+        try {
+          const jsonData = XLSX.utils.sheet_to_json(dataWorksheet);
+          console.log('Data sheet converted to JSON, rows:', jsonData.length);
+          
+          if (jsonData.length === 0) {
+            console.warn('No data rows found in Excel file');
+          }
+          
+          // Get second sheet (metadata) if it exists
+          let metadata: any[] = [];
+          if (workbook.SheetNames.length > 1 && workbook.SheetNames[1] === 'ColumnMetadata') {
+            const metadataWorksheet = workbook.Sheets[workbook.SheetNames[1]];
+            if (metadataWorksheet) {
+              metadata = XLSX.utils.sheet_to_json(metadataWorksheet);
+              console.log('Metadata sheet found and converted, items:', metadata.length);
+            }
+          }
+          
+          resolve({ data: jsonData, metadata });
+        } catch (jsonError) {
+          console.error('Error converting sheet to JSON:', jsonError);
+          reject(new Error('Failed to convert Excel data to JSON format'));
+        }
       } catch (error) {
-        reject(new Error('Failed to parse Excel file'));
+        console.error('Failed to parse Excel file:', error);
+        reject(new Error('Failed to parse Excel file format'));
       }
     };
     
-    reader.onerror = () => {
+    reader.onerror = (e) => {
+      console.error('Error reading file:', e);
       reject(new Error('Error reading file'));
     };
     
+    console.log('Starting to read file as ArrayBuffer...');
     reader.readAsArrayBuffer(file);
   });
 };
@@ -76,20 +116,54 @@ export const parseCSVFile = async (file: File): Promise<any[]> => {
     reader.onload = (e: ProgressEvent<FileReader>) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        if (!data) {
+          console.error('No data read from CSV file');
+          reject(new Error('No data could be read from the CSV file'));
+          return;
+        }
         
-        resolve(jsonData);
+        console.log('CSV file read successfully, parsing...');
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+          console.error('Invalid CSV file structure');
+          reject(new Error('Invalid CSV file structure'));
+          return;
+        }
+        
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        
+        if (!worksheet) {
+          console.error('No worksheet found in CSV');
+          reject(new Error('No data found in CSV file'));
+          return;
+        }
+        
+        try {
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          console.log('CSV converted to JSON, rows:', jsonData.length);
+          
+          if (jsonData.length === 0) {
+            console.warn('No data rows found in CSV file');
+          }
+          
+          resolve(jsonData);
+        } catch (jsonError) {
+          console.error('Error converting CSV to JSON:', jsonError);
+          reject(new Error('Failed to convert CSV data to JSON format'));
+        }
       } catch (error) {
-        reject(new Error('Failed to parse CSV file'));
+        console.error('Failed to parse CSV file:', error);
+        reject(new Error('Failed to parse CSV file format'));
       }
     };
     
-    reader.onerror = () => {
-      reject(new Error('Error reading file'));
+    reader.onerror = (e) => {
+      console.error('Error reading CSV file:', e);
+      reject(new Error('Error reading CSV file'));
     };
     
+    console.log('Starting to read CSV file as ArrayBuffer...');
     reader.readAsArrayBuffer(file);
   });
 };

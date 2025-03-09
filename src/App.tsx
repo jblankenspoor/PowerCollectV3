@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 3.2.2 - Fixed import preview and alignment issues
+ * @version 3.2.3 - Fixed file upload and import functionality
  */
 
 import { TableProvider } from './context/TableContext';
@@ -45,7 +45,7 @@ function App() {
         
         {/* Version number in the bottom left corner */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v3.2.2
+          v3.2.3
         </div>
       </div>
       <SpeedInsights />

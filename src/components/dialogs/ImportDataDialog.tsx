@@ -6,7 +6,7 @@
  * Now shows a preview step before actual import.
  * 
  * @module ImportDataDialog
- * @version 1.1.1 - Added file reset after import
+ * @version 1.1.2 - Fixed file upload functionality
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -24,6 +24,7 @@ const ImportDataDialog: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   /**
@@ -35,18 +36,25 @@ const ImportDataDialog: React.FC = () => {
       // Reset file only if there was a previous file and import completed successfully
       if (file) {
         setFile(null);
+        setUploadError(null);
         // Reset the file input element
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
       }
     }
-  }, [state.showImportPreviewDialog, state.importPreviewData, state.importErrors]);
+  }, [state.showImportPreviewDialog, state.importPreviewData, state.importErrors, file]);
 
   /**
    * Handle dialog close
    */
   const handleClose = () => {
+    setFile(null);
+    setUploadError(null);
+    setIsLoading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     dispatch({ type: 'TOGGLE_IMPORT_DIALOG', payload: false });
   };
 
@@ -56,8 +64,17 @@ const ImportDataDialog: React.FC = () => {
    * @param e - The file input change event
    */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadError(null);
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      console.log('File selected:', selectedFile.name, selectedFile.size);
+      
+      if (!isValidFileType(selectedFile.name)) {
+        setUploadError('Invalid file type. Please use .xlsx, .xls, or .csv files.');
+        return;
+      }
+      
+      setFile(selectedFile);
       dispatch({ type: 'SET_IMPORT_ERRORS', payload: [] });
     }
   };
@@ -70,9 +87,18 @@ const ImportDataDialog: React.FC = () => {
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
+    setUploadError(null);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFile(e.dataTransfer.files[0]);
+      const droppedFile = e.dataTransfer.files[0];
+      console.log('File dropped:', droppedFile.name, droppedFile.size);
+      
+      if (!isValidFileType(droppedFile.name)) {
+        setUploadError('Invalid file type. Please use .xlsx, .xls, or .csv files.');
+        return;
+      }
+      
+      setFile(droppedFile);
       dispatch({ type: 'SET_IMPORT_ERRORS', payload: [] });
     }
   };
@@ -103,18 +129,27 @@ const ImportDataDialog: React.FC = () => {
    * Process file and show preview
    */
   const handlePreview = async () => {
-    if (!file) return;
+    if (!file) {
+      setUploadError('Please select a file first.');
+      return;
+    }
     
     try {
       setIsLoading(true);
+      setUploadError(null);
       dispatch({ type: 'SET_IMPORT_ERRORS', payload: [] });
       
       const extension = file.name.split('.').pop()?.toLowerCase();
+      console.log('Processing file:', file.name, 'with extension:', extension);
       
       if (extension === 'csv') {
         // Handle CSV preview
+        console.log('Parsing CSV file');
         const data = await parseCSVFile(file);
+        console.log('CSV data parsed successfully, rows:', data.length);
+        
         const validationResult = validateCSVImport(data);
+        console.log('CSV validation result:', validationResult.isValid);
         
         if (!validationResult.isValid) {
           dispatch({ type: 'SET_IMPORT_ERRORS', payload: validationResult.errors });
@@ -124,6 +159,7 @@ const ImportDataDialog: React.FC = () => {
         
         // Show preview if valid
         if (validationResult.data && validationResult.columns) {
+          console.log('Setting preview data with', validationResult.data.length, 'rows');
           dispatch({
             type: 'SET_IMPORT_PREVIEW_DATA',
             payload: {
@@ -135,27 +171,38 @@ const ImportDataDialog: React.FC = () => {
         }
       } else if (['xlsx', 'xls'].includes(extension || '')) {
         // Handle Excel preview
-        const { data, metadata } = await parseExcelFile(file);
-        const validationResult = validateExcelImport(data, metadata);
-        
-        if (!validationResult.isValid) {
-          dispatch({ type: 'SET_IMPORT_ERRORS', payload: validationResult.errors });
-          setIsLoading(false);
-          return;
-        }
-        
-        // Show preview if valid
-        if (validationResult.data && validationResult.columns) {
-          dispatch({
-            type: 'SET_IMPORT_PREVIEW_DATA',
-            payload: {
-              tasks: validationResult.data,
-              columns: validationResult.columns,
-              sourceFormat: 'excel'
-            }
-          });
+        console.log('Parsing Excel file');
+        try {
+          const { data, metadata } = await parseExcelFile(file);
+          console.log('Excel data parsed successfully, rows:', data.length);
+          
+          const validationResult = validateExcelImport(data, metadata);
+          console.log('Excel validation result:', validationResult.isValid);
+          
+          if (!validationResult.isValid) {
+            dispatch({ type: 'SET_IMPORT_ERRORS', payload: validationResult.errors });
+            setIsLoading(false);
+            return;
+          }
+          
+          // Show preview if valid
+          if (validationResult.data && validationResult.columns) {
+            console.log('Setting preview data with', validationResult.data.length, 'rows');
+            dispatch({
+              type: 'SET_IMPORT_PREVIEW_DATA',
+              payload: {
+                tasks: validationResult.data,
+                columns: validationResult.columns,
+                sourceFormat: 'excel'
+              }
+            });
+          }
+        } catch (parseError) {
+          console.error('Error parsing Excel file:', parseError);
+          setUploadError(`Error parsing Excel file: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
         }
       } else {
+        setUploadError('Unsupported file format. Please use .xlsx, .xls, or .csv files.');
         dispatch({ 
           type: 'SET_IMPORT_ERRORS', 
           payload: ['Unsupported file format. Please use .xlsx, .xls, or .csv files.'] 
@@ -163,6 +210,7 @@ const ImportDataDialog: React.FC = () => {
       }
     } catch (error) {
       console.error('Import preview failed:', error);
+      setUploadError(`Error processing file: ${error instanceof Error ? error.message : 'Unknown error'}`);
       dispatch({ 
         type: 'SET_IMPORT_ERRORS', 
         payload: ['Failed to process file. Please check the file format and try again.'] 
@@ -230,6 +278,10 @@ const ImportDataDialog: React.FC = () => {
                   onClick={(e) => {
                     e.stopPropagation();
                     setFile(null);
+                    setUploadError(null);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
+                    }
                   }}
                 >
                   Choose another file
@@ -250,6 +302,17 @@ const ImportDataDialog: React.FC = () => {
               </div>
             )}
           </div>
+          
+          {/* Upload Error */}
+          {uploadError && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
+              <div className="flex items-center mb-1">
+                <ExclamationCircleIcon className="h-4 w-4 text-red-500 mr-1" />
+                <h3 className="text-sm font-medium text-red-800">Upload Error:</h3>
+              </div>
+              <p className="text-xs text-red-700">{uploadError}</p>
+            </div>
+          )}
           
           {/* Import Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
@@ -289,10 +352,10 @@ const ImportDataDialog: React.FC = () => {
           </button>
           <button
             onClick={handlePreview}
-            disabled={!file || isLoading || !isValidFileType(file?.name || '')}
+            disabled={!file || isLoading}
             className={`
               px-4 py-2 text-sm font-medium text-white rounded-md flex items-center
-              ${!file || isLoading || !isValidFileType(file?.name || '') ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}
+              ${!file || isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}
             `}
           >
             {isLoading ? (

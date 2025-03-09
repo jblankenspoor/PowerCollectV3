@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 3.2.10 - Fixed TypeScript errors for deployment
+ * @version 3.2.11 - Disabled CSV imports, only Excel files are supported
  */
 
 import { TableProvider } from './context/TableContext';
@@ -45,7 +45,7 @@ function App() {
         
         {/* Version number in the bottom left corner */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v3.2.10
+          v3.2.11
         </div>
       </div>
       <SpeedInsights />

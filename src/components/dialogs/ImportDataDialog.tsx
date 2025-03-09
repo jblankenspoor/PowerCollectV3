@@ -1,17 +1,17 @@
 /**
  * ImportDataDialog Component
  * 
- * Dialog for importing table data from Excel or CSV files.
+ * Dialog for importing table data from Excel files.
  * Handles file upload, validation, and data previewing.
  * 
  * @module ImportDataDialog
- * @version 1.1.2 - Fixed build error with unused variable
+ * @version 1.1.3 - Disabled CSV uploads, only Excel files are supported
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { XMarkIcon, ArrowUpTrayIcon, DocumentIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ArrowUpTrayIcon, DocumentIcon, ExclamationCircleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { useTableContext } from '../../context/TableContext';
-import { parseExcelFile, parseCSVFile, validateExcelImport, validateCSVImport } from '../../utils/importUtils';
+import { parseExcelFile, validateExcelImport } from '../../utils/importUtils';
 
 /**
  * ImportDataDialog Component - Allows users to import table data
@@ -66,8 +66,19 @@ const ImportDataDialog: React.FC = () => {
    */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-      dispatch({ type: 'SET_IMPORT_ERRORS', payload: [] });
+      const selectedFile = e.target.files[0];
+      const extension = selectedFile.name.split('.').pop()?.toLowerCase();
+      
+      // Only accept Excel files
+      if (['xlsx', 'xls'].includes(extension || '')) {
+        setFile(selectedFile);
+        dispatch({ type: 'SET_IMPORT_ERRORS', payload: [] });
+      } else {
+        dispatch({ 
+          type: 'SET_IMPORT_ERRORS', 
+          payload: ['Only Excel files (.xlsx, .xls) are currently supported.'] 
+        });
+      }
     }
   };
 
@@ -81,8 +92,19 @@ const ImportDataDialog: React.FC = () => {
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFile(e.dataTransfer.files[0]);
-      dispatch({ type: 'SET_IMPORT_ERRORS', payload: [] });
+      const droppedFile = e.dataTransfer.files[0];
+      const extension = droppedFile.name.split('.').pop()?.toLowerCase();
+      
+      // Only accept Excel files
+      if (['xlsx', 'xls'].includes(extension || '')) {
+        setFile(droppedFile);
+        dispatch({ type: 'SET_IMPORT_ERRORS', payload: [] });
+      } else {
+        dispatch({ 
+          type: 'SET_IMPORT_ERRORS', 
+          payload: ['Only Excel files (.xlsx, .xls) are currently supported.'] 
+        });
+      }
     }
   };
 
@@ -105,7 +127,7 @@ const ImportDataDialog: React.FC = () => {
    */
   const isValidFileType = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase();
-    return ['xlsx', 'xls', 'csv'].includes(extension || '');
+    return ['xlsx', 'xls'].includes(extension || '');
   };
 
   /**
@@ -121,29 +143,7 @@ const ImportDataDialog: React.FC = () => {
       
       const extension = file.name.split('.').pop()?.toLowerCase();
       
-      if (extension === 'csv') {
-        // Handle CSV validation
-        const data = await parseCSVFile(file);
-        const validationResult = validateCSVImport(data);
-        
-        if (!validationResult.isValid) {
-          dispatch({ type: 'SET_IMPORT_ERRORS', payload: validationResult.errors });
-          return;
-        }
-        
-        // Show preview if valid
-        if (validationResult.data && validationResult.columns) {
-          dispatch({
-            type: 'SET_IMPORT_PREVIEW_DATA',
-            payload: {
-              tasks: validationResult.data,
-              columns: validationResult.columns,
-              sourceType: 'csv',
-              fileName: file.name
-            }
-          });
-        }
-      } else if (['xlsx', 'xls'].includes(extension || '')) {
+      if (['xlsx', 'xls'].includes(extension || '')) {
         // Handle Excel validation
         const { data, metadata } = await parseExcelFile(file);
         const validationResult = validateExcelImport(data, metadata);
@@ -168,7 +168,7 @@ const ImportDataDialog: React.FC = () => {
       } else {
         dispatch({ 
           type: 'SET_IMPORT_ERRORS', 
-          payload: ['Unsupported file format. Please use .xlsx, .xls, or .csv files.'] 
+          payload: ['Only Excel files (.xlsx, .xls) are currently supported.'] 
         });
       }
     } catch (error) {
@@ -225,7 +225,7 @@ const ImportDataDialog: React.FC = () => {
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
-              accept=".xlsx,.xls,.csv"
+              accept=".xlsx,.xls"
             />
             
             {file ? (
@@ -255,20 +255,33 @@ const ImportDataDialog: React.FC = () => {
                   or click to browse
                 </p>
                 <p className="text-xs text-gray-500 mt-4">
-                  Supported formats: .xlsx, .xls, .csv
+                  Supported formats: .xlsx, .xls
                 </p>
               </div>
             )}
+          </div>
+          
+          {/* CSV Not Supported Notice */}
+          <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-4">
+            <div className="flex items-start">
+              <InformationCircleIcon className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-amber-800">CSV Import Not Supported</h3>
+                <p className="text-xs text-amber-700">
+                  CSV import is currently not supported. Please use Excel files (.xlsx, .xls) for importing data.
+                  CSV support will be added in a future update.
+                </p>
+              </div>
+            </div>
           </div>
           
           {/* Import Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
             <h3 className="text-sm font-medium text-blue-800 mb-1">Import Process:</h3>
             <ul className="text-xs text-blue-700 list-disc pl-5 space-y-1">
-              <li>First, select your file to validate its structure</li>
+              <li>First, select your Excel file to validate its structure</li>
               <li>Review the data preview before confirming</li>
               <li>Excel files (.xlsx, .xls) preserve column types</li>
-              <li>CSV files will import all columns as text type</li>
             </ul>
           </div>
           

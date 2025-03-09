@@ -4,7 +4,7 @@
  * Renders the header row of the data table with editable column titles
  * 
  * @module TableHeader
- * @version 1.4.0 - Updated to resize columns in real-time during editing
+ * @version 1.4.1 - Disabled Select All button with tooltip
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -143,11 +143,17 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, allSelected, onSelec
       {/* First cell is for Select All button - centered alignment */}
       <div className={`${columns[0].width} ${columns[0].minWidth || ''} p-4 flex items-center justify-center flex-shrink-0`}>
         <button
-          onClick={() => onSelectAll(!allSelected)}
-          className="w-full px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-          aria-label={allSelected ? "Deselect all rows" : "Select all rows"}
+          disabled={true}
+          className="w-full px-2 py-1 text-sm bg-gray-400 text-white rounded cursor-not-allowed relative group"
+          aria-label="Select all rows (disabled)"
         >
-          {allSelected ? 'Deselect All' : 'Select All'}
+          Select All
+          
+          {/* Tooltip for disabled Select All button */}
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+            To be implemented
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+          </div>
         </button>
       </div>
       

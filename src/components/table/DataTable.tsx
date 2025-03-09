@@ -11,11 +11,11 @@
  * - Data preview before import
  * 
  * @module DataTable
- * @version 1.1.2 - Fixed import dialog closing issues
+ * @version 1.1.3 - UI improvements and button fixes
  */
 
 import React, { useRef, useEffect } from 'react';
-import { ArrowUturnLeftIcon, ArrowUturnRightIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
+import { ArrowUturnLeftIcon, ArrowUturnRightIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 import { Column } from '../../types/dataTypes';
 
 // Import refactored components
@@ -383,27 +383,34 @@ const DataTable: React.FC = () => {
             className="p-1.5 rounded text-gray-700 hover:bg-gray-100 flex items-center"
             title="Import data from Excel or CSV"
           >
-            <ArrowUpTrayIcon className="h-5 w-5" />
+            <ArrowDownTrayIcon className="h-5 w-5" />
             <span className="ml-1 text-sm">Import</span>
           </button>
           
           <button
-            onClick={handleExportClick}
-            className="p-1.5 rounded text-gray-700 hover:bg-gray-100 flex items-center"
-            title="Export data to Excel or CSV"
+            disabled={true}
+            className="p-1.5 rounded text-gray-400 cursor-not-allowed flex items-center relative group"
           >
-            <ArrowDownTrayIcon className="h-5 w-5" />
+            <ArrowUpTrayIcon className="h-5 w-5" />
             <span className="ml-1 text-sm">Export</span>
+            
+            {/* Tooltip for disabled export button */}
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+              To be implemented
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+            </div>
+          </button>
+          
+          {/* Keyboard shortcuts button */}
+          <button
+            onClick={toggleShortcutsDialog}
+            className="p-1.5 rounded text-gray-700 hover:bg-gray-100 flex items-center"
+            title="Keyboard shortcuts"
+          >
+            <QuestionMarkCircleIcon className="h-5 w-5" />
+            <span className="ml-1 text-sm">Shortcuts</span>
           </button>
         </div>
-        
-        {/* Existing shortcuts button */}
-        <button
-          onClick={toggleShortcutsDialog}
-          className="text-sm text-gray-500 hover:text-gray-700"
-        >
-          Keyboard Shortcuts
-        </button>
       </div>
       
       {/* Main container with full width */}

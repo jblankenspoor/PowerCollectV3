@@ -7,6 +7,7 @@
  * @module importUtils
  * @version 1.0.1 - Fixed column width and alignment issues
  * @version 1.0.2 - Fixed unused variable TypeScript error
+ * @version 1.0.3 - Fixed Select column preservation and updated column generation
  */
 
 import * as XLSX from 'xlsx';
@@ -215,8 +216,17 @@ export const validateExcelImport = (data: any[], metadata: any[]): ValidationRes
     return { isValid: false, errors };
   }
   
+  // Create the select column that will be preserved
+  const selectColumn: Column = { 
+    id: 'select', 
+    title: 'SELECT', 
+    type: 'select', 
+    width: 'w-32', 
+    minWidth: 'min-w-[128px]' 
+  };
+  
   // Validate metadata if present
-  let columns: Column[] = [];
+  let importedColumns: Column[] = [];
   if (metadata && metadata.length > 0) {
     // Check metadata structure
     const hasRequiredFields = metadata.every(
@@ -237,7 +247,7 @@ export const validateExcelImport = (data: any[], metadata: any[]): ValidationRes
     }
     
     // Create columns from metadata with proper styling
-    columns = metadata
+    importedColumns = metadata
       .filter(col => isValidColumnType(col.Type))
       .map(col => {
         // Set appropriate width based on column type
@@ -272,11 +282,14 @@ export const validateExcelImport = (data: any[], metadata: any[]): ValidationRes
       });
   } else {
     // No metadata - generate columns from data
-    columns = generateColumnsFromData(data);
+    importedColumns = generateColumnsFromData(data);
   }
   
+  // Combine the select column with imported columns
+  const columns = [selectColumn, ...importedColumns];
+  
   // Convert data to tasks
-  const tasks = convertToTasks(data, columns);
+  const tasks = convertToTasks(data, importedColumns);
   
   return {
     isValid: errors.length === 0,

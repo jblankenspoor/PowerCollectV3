@@ -11,7 +11,7 @@
  * - Data preview before import
  * 
  * @module DataTable
- * @version 1.1.5 - Fixed TypeScript errors for deployment
+ * @version 1.1.6 - Fixed duplicate notifications and Select column preservation
  */
 
 import React, { useRef, useEffect } from 'react';
@@ -408,25 +408,8 @@ const DataTable: React.FC = () => {
       
       {/* Main container with full width */}
       <div className="w-full">
-        {/* Outer wrapper with relative positioning for scroll notification */}
+        {/* Outer wrapper with relative positioning for notifications */}
         <div className="relative">
-          {/* Scroll notification component for horizontal scrolling indication */}
-          <ScrollNotification 
-            show={showScrollNotification} 
-          />
-          
-          {/* Paste notification component */}
-          <PasteNotification 
-            show={showPasteNotification} 
-            message={pasteNotificationMessage} 
-          />
-          
-          {/* Shortcuts dialog */}
-          <ShortcutsDialog 
-            isOpen={showShortcutsDialog} 
-            onClose={toggleShortcutsDialog} 
-          />
-          
           {/* Table wrapper with horizontal scroll */}
           <div 
             ref={tableRef}
@@ -505,23 +488,23 @@ const DataTable: React.FC = () => {
       </div>
       
       {/* Notifications and Dialogs */}
-      {state.showPasteNotification && (
+      {showPasteNotification && (
         <PasteNotification 
-          show={state.showPasteNotification} 
-          message={state.pasteNotificationMessage} 
+          show={showPasteNotification} 
+          message={pasteNotificationMessage} 
         />
       )}
       
-      {state.showShortcutsDialog && (
+      {showShortcutsDialog && (
         <ShortcutsDialog 
-          isOpen={state.showShortcutsDialog} 
-          onClose={() => dispatch({ type: 'TOGGLE_SHORTCUTS_DIALOG', payload: false })} 
+          isOpen={showShortcutsDialog} 
+          onClose={toggleShortcutsDialog} 
         />
       )}
       
-      {state.showScrollNotification && (
+      {showScrollNotification && (
         <ScrollNotification 
-          show={state.showScrollNotification} 
+          show={showScrollNotification} 
         />
       )}
       

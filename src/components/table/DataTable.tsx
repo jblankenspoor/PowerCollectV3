@@ -8,10 +8,10 @@
  * - Excel/CSV data copy-paste with auto-expansion
  * - Undo/redo functionality with 1-step history
  * - Import/export functionality for Excel and CSV files
- * - Import preview for data validation
+ * - Data preview before import
  * 
  * @module DataTable
- * @version 1.2.0 - Added import preview functionality
+ * @version 1.1.2 - Fixed import dialog closing issues
  */
 
 import React, { useRef, useEffect } from 'react';
@@ -52,7 +52,11 @@ const DataTable: React.FC = () => {
     showPasteNotification,
     pasteNotificationMessage,
     showShortcutsDialog,
-    showScrollNotification 
+    showScrollNotification,
+    showImportPreviewDialog,
+    importPreviewData,
+    importPreviewSourceType,
+    importPreviewFileName
   } = state;
 
   // Reference for the table container
@@ -305,47 +309,39 @@ const DataTable: React.FC = () => {
   const handleExportClick = () => {
     dispatch({ type: 'TOGGLE_EXPORT_DIALOG', payload: true });
   };
-  
+
   /**
    * Handle import preview confirmation
+   * This actually performs the import after user confirms via the preview dialog
    */
   const handleImportConfirm = () => {
-    if (state.importPreviewData) {
-      // Save current state to history before import
-      dispatch({ type: 'SAVE_HISTORY' });
-      
-      // Ensure all columns have proper width settings for alignment
-      const columnsWithConsistentWidth = state.importPreviewData.columns.map(column => ({
-        ...column,
-        width: column.width || 'w-40',
-        minWidth: column.minWidth || 'min-w-[160px]' 
-      }));
-      
-      // Import the data with properly formatted columns
+    if (importPreviewData) {
+      // Actually import the data now
       dispatch({
         type: 'IMPORT_DATA',
         payload: {
-          tasks: state.importPreviewData.tasks,
-          columns: columnsWithConsistentWidth
+          tasks: importPreviewData.tasks,
+          columns: importPreviewData.columns
         }
       });
       
+      // Close both import and preview dialogs
+      dispatch({ type: 'TOGGLE_IMPORT_PREVIEW_DIALOG', payload: false });
+      dispatch({ type: 'TOGGLE_IMPORT_DIALOG', payload: false });
+      
       // Show success notification
-      dispatch({
-        type: 'SHOW_PASTE_NOTIFICATION',
-        payload: {
-          message: `Successfully imported ${state.importPreviewData.tasks.length} rows of data.`
-        }
+      dispatch({ 
+        type: 'SHOW_PASTE_NOTIFICATION', 
+        payload: { message: 'Data imported successfully!' } 
       });
     }
   };
-  
+
   /**
-   * Handle import preview cancellation
+   * Handle canceling the import preview
    */
   const handleImportCancel = () => {
     dispatch({ type: 'TOGGLE_IMPORT_PREVIEW_DIALOG', payload: false });
-    dispatch({ type: 'SET_IMPORT_PREVIEW_DATA', payload: null });
   };
 
   /**
@@ -533,10 +529,12 @@ const DataTable: React.FC = () => {
       <ImportDataDialog />
       <ExportDataDialog />
       <ImportPreviewDialog 
-        isOpen={state.showImportPreviewDialog}
-        previewData={state.importPreviewData}
+        isOpen={showImportPreviewDialog}
+        onClose={handleImportCancel}
         onConfirm={handleImportConfirm}
-        onCancel={handleImportCancel}
+        previewData={importPreviewData || { tasks: [], columns: [] }}
+        sourceType={importPreviewSourceType || 'excel'}
+        fileName={importPreviewFileName}
       />
     </div>
   );

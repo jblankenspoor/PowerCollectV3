@@ -5,7 +5,8 @@
  * with validation and error handling.
  * 
  * @module importUtils
- * @version 1.0.1 - Enhanced error handling and debugging
+ * @version 1.0.1 - Fixed column width and alignment issues
+ * @version 1.0.2 - Fixed unused variable TypeScript error
  */
 
 import * as XLSX from 'xlsx';
@@ -36,69 +37,30 @@ export const parseExcelFile = async (file: File): Promise<{data: any[], metadata
     reader.onload = (e: ProgressEvent<FileReader>) => {
       try {
         const data = e.target?.result;
-        if (!data) {
-          console.error('No data read from file');
-          reject(new Error('No data could be read from the file'));
-          return;
-        }
-        
-        console.log('File read successfully, parsing workbook...');
         const workbook = XLSX.read(data, { type: 'array' });
-        
-        if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
-          console.error('Invalid Excel file structure');
-          reject(new Error('Invalid Excel file structure'));
-          return;
-        }
-        
-        console.log('Workbook parsed, sheet names:', workbook.SheetNames);
         
         // Get first sheet (data)
         const firstSheetName = workbook.SheetNames[0];
         const dataWorksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(dataWorksheet);
         
-        if (!dataWorksheet) {
-          console.error('No worksheet found');
-          reject(new Error('No worksheet found in Excel file'));
-          return;
+        // Get second sheet (metadata) if it exists
+        let metadata: any[] = [];
+        if (workbook.SheetNames.length > 1 && workbook.SheetNames[1] === 'ColumnMetadata') {
+          const metadataWorksheet = workbook.Sheets[workbook.SheetNames[1]];
+          metadata = XLSX.utils.sheet_to_json(metadataWorksheet);
         }
         
-        // Try to convert to JSON
-        try {
-          const jsonData = XLSX.utils.sheet_to_json(dataWorksheet);
-          console.log('Data sheet converted to JSON, rows:', jsonData.length);
-          
-          if (jsonData.length === 0) {
-            console.warn('No data rows found in Excel file');
-          }
-          
-          // Get second sheet (metadata) if it exists
-          let metadata: any[] = [];
-          if (workbook.SheetNames.length > 1 && workbook.SheetNames[1] === 'ColumnMetadata') {
-            const metadataWorksheet = workbook.Sheets[workbook.SheetNames[1]];
-            if (metadataWorksheet) {
-              metadata = XLSX.utils.sheet_to_json(metadataWorksheet);
-              console.log('Metadata sheet found and converted, items:', metadata.length);
-            }
-          }
-          
-          resolve({ data: jsonData, metadata });
-        } catch (jsonError) {
-          console.error('Error converting sheet to JSON:', jsonError);
-          reject(new Error('Failed to convert Excel data to JSON format'));
-        }
+        resolve({ data: jsonData, metadata });
       } catch (error) {
-        console.error('Failed to parse Excel file:', error);
-        reject(new Error('Failed to parse Excel file format'));
+        reject(new Error('Failed to parse Excel file'));
       }
     };
     
-    reader.onerror = (e) => {
-      console.error('Error reading file:', e);
+    reader.onerror = () => {
       reject(new Error('Error reading file'));
     };
     
-    console.log('Starting to read file as ArrayBuffer...');
     reader.readAsArrayBuffer(file);
   });
 };
@@ -116,54 +78,20 @@ export const parseCSVFile = async (file: File): Promise<any[]> => {
     reader.onload = (e: ProgressEvent<FileReader>) => {
       try {
         const data = e.target?.result;
-        if (!data) {
-          console.error('No data read from CSV file');
-          reject(new Error('No data could be read from the CSV file'));
-          return;
-        }
-        
-        console.log('CSV file read successfully, parsing...');
         const workbook = XLSX.read(data, { type: 'array' });
-        
-        if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
-          console.error('Invalid CSV file structure');
-          reject(new Error('Invalid CSV file structure'));
-          return;
-        }
-        
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
-        if (!worksheet) {
-          console.error('No worksheet found in CSV');
-          reject(new Error('No data found in CSV file'));
-          return;
-        }
-        
-        try {
-          const jsonData = XLSX.utils.sheet_to_json(worksheet);
-          console.log('CSV converted to JSON, rows:', jsonData.length);
-          
-          if (jsonData.length === 0) {
-            console.warn('No data rows found in CSV file');
-          }
-          
-          resolve(jsonData);
-        } catch (jsonError) {
-          console.error('Error converting CSV to JSON:', jsonError);
-          reject(new Error('Failed to convert CSV data to JSON format'));
-        }
+        resolve(jsonData);
       } catch (error) {
-        console.error('Failed to parse CSV file:', error);
-        reject(new Error('Failed to parse CSV file format'));
+        reject(new Error('Failed to parse CSV file'));
       }
     };
     
-    reader.onerror = (e) => {
-      console.error('Error reading CSV file:', e);
-      reject(new Error('Error reading CSV file'));
+    reader.onerror = () => {
+      reject(new Error('Error reading file'));
     };
     
-    console.log('Starting to read CSV file as ArrayBuffer...');
     reader.readAsArrayBuffer(file);
   });
 };
@@ -191,14 +119,52 @@ const generateColumnsFromData = (data: any[]): Column[] => {
   // Get keys from first data item
   const keys = Object.keys(data[0]);
   
-  // Create default columns with consistent width settings
-  return keys.map(key => ({
-    id: key.toLowerCase().replace(/\s+/g, '_'),
-    title: key,
-    type: 'text' as ColumnType,
-    width: 'w-40',
-    minWidth: 'min-w-[160px]' // Adding minWidth for consistent alignment
-  }));
+  // Create default columns with proper styling
+  return keys.map((key, index) => {
+    // Determine appropriate width based on content type and position
+    let widthClass = 'w-40';
+    let minWidthClass = 'min-w-[160px]';
+    
+    // Special handling for specific column types
+    if (index === 0 && (key.toLowerCase().includes('select') || key.toLowerCase().includes('checkbox'))) {
+      // Select column is typically narrower
+      widthClass = 'w-32';
+      minWidthClass = 'min-w-[128px]';
+    } else if (key.toLowerCase().includes('name') || key.toLowerCase().includes('title')) {
+      // Name columns are typically wider
+      widthClass = 'w-48';
+      minWidthClass = 'min-w-[192px]';
+    } else if (key.toLowerCase().includes('status')) {
+      widthClass = 'w-36';
+      minWidthClass = 'min-w-[144px]';
+    } else if (key.toLowerCase().includes('priority')) {
+      widthClass = 'w-36';
+      minWidthClass = 'min-w-[144px]';
+    } else if (key.toLowerCase().includes('date')) {
+      widthClass = 'w-40';
+      minWidthClass = 'min-w-[160px]';
+    }
+    
+    // Determine appropriate type based on column name
+    let columnType: ColumnType = 'text';
+    if (key.toLowerCase().includes('date')) {
+      columnType = 'date';
+    } else if (key.toLowerCase().includes('status')) {
+      columnType = 'status';
+    } else if (key.toLowerCase().includes('priority')) {
+      columnType = 'priority';
+    } else if (index === 0 && (key.toLowerCase().includes('select') || key.toLowerCase().includes('checkbox'))) {
+      columnType = 'select';
+    }
+    
+    return {
+      id: key.toLowerCase().replace(/\s+/g, '_'),
+      title: key,
+      type: columnType,
+      width: widthClass,
+      minWidth: minWidthClass
+    };
+  });
 };
 
 /**
@@ -210,7 +176,6 @@ const generateColumnsFromData = (data: any[]): Column[] => {
  */
 const convertToTasks = (data: any[], columns: Column[]): Task[] => {
   return data.map(item => {
-    // Create base task with default values
     const task: Task = {
       id: uuidv4(),
       name: '',
@@ -271,16 +236,40 @@ export const validateExcelImport = (data: any[], metadata: any[]): ValidationRes
       errors.push(`Invalid column types found: ${invalidTypes.join(', ')}`);
     }
     
-    // Create columns from metadata
+    // Create columns from metadata with proper styling
     columns = metadata
       .filter(col => isValidColumnType(col.Type))
-      .map(col => ({
-        id: col.ColumnId,
-        title: col.Title,
-        type: col.Type as ColumnType,
-        width: 'w-40',
-        minWidth: 'min-w-[160px]' // Adding consistent minWidth
-      }));
+      .map(col => {
+        // Set appropriate width based on column type
+        let widthClass = 'w-40';
+        let minWidthClass = 'min-w-[160px]';
+        
+        // Determine width based on type
+        if (col.Type === 'select') {
+          widthClass = 'w-32';
+          minWidthClass = 'min-w-[128px]';
+        } else if (col.Type === 'text' && (col.Title.toLowerCase().includes('name') || col.Title.toLowerCase().includes('title'))) {
+          widthClass = 'w-48';
+          minWidthClass = 'min-w-[192px]';
+        } else if (col.Type === 'status') {
+          widthClass = 'w-36';
+          minWidthClass = 'min-w-[144px]';
+        } else if (col.Type === 'priority') {
+          widthClass = 'w-36';
+          minWidthClass = 'min-w-[144px]';
+        } else if (col.Type === 'date') {
+          widthClass = 'w-40';
+          minWidthClass = 'min-w-[160px]';
+        }
+        
+        return {
+          id: col.ColumnId,
+          title: col.Title,
+          type: col.Type as ColumnType,
+          width: widthClass,
+          minWidth: minWidthClass
+        };
+      });
   } else {
     // No metadata - generate columns from data
     columns = generateColumnsFromData(data);

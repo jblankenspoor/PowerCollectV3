@@ -1,101 +1,109 @@
 /**
  * ImportPreviewDialog Component
  * 
- * Dialog for previewing data before importing it into the table.
- * Shows a sample of rows and columns with the option to confirm or cancel.
+ * Dialog for previewing table data before confirming import.
+ * Shows a sample of the data and allows confirming or canceling the import.
  * 
  * @module ImportPreviewDialog
+ * @version 1.0.5 - Fixed unused import causing build errors
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XMarkIcon, CheckIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { useTableContext } from '../../context/TableContext';
 import { Column, Task } from '../../types/dataTypes';
 
 /**
- * Props for the ImportPreviewDialog component
- * 
+ * ImportPreviewDialog Props
  * @interface ImportPreviewDialogProps
  */
 interface ImportPreviewDialogProps {
   isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
   previewData: {
     tasks: Task[];
     columns: Column[];
-    sourceFormat: 'excel' | 'csv';
-  } | null;
-  onConfirm: () => void;
-  onCancel: () => void;
+  };
+  sourceType: 'excel' | 'csv';
+  fileName: string;
 }
 
 /**
- * ImportPreviewDialog Component - Displays a preview of data to be imported
+ * ImportPreviewDialog Component - Allows users to preview data before importing
  * 
  * @param {ImportPreviewDialogProps} props - Component props
  * @returns JSX Element
  */
-const ImportPreviewDialog: React.FC<ImportPreviewDialogProps> = ({ 
-  isOpen, 
-  previewData, 
-  onConfirm, 
-  onCancel 
+const ImportPreviewDialog: React.FC<ImportPreviewDialogProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  previewData,
+  sourceType,
+  fileName
 }) => {
-  const [page, setPage] = useState(0);
-  const rowsPerPage = 5;
+  // State to manage visibility for animation
+  const [isVisible, setIsVisible] = useState(false);
+  
+  // Update visibility based on isOpen prop
+  useEffect(() => {
+    if (isOpen) {
+      // When opening, make element visible first
+      setIsVisible(true);
+    } else {
+      // When closing, wait for animation before unmounting
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 300); // Match this with your transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+  
+  // If dialog should not be rendered
+  if (!isOpen && !isVisible) return null;
 
-  if (!isOpen || !previewData) return null;
-
-  const { tasks, columns, sourceFormat } = previewData;
+  // Limit preview data to a reasonable amount
+  const MAX_PREVIEW_ROWS = 5;
+  const previewTasks = previewData.tasks.slice(0, MAX_PREVIEW_ROWS);
+  const totalRows = previewData.tasks.length;
   
   /**
-   * Calculate total pages for pagination
+   * Get background color based on column type
+   * 
+   * @param type - Column type
+   * @returns Tailwind CSS class for background color
    */
-  const totalPages = Math.ceil(tasks.length / rowsPerPage);
-  
-  /**
-   * Get current page of data
-   */
-  const paginatedTasks = tasks.slice(
-    page * rowsPerPage, 
-    (page + 1) * rowsPerPage
-  );
-
-  /**
-   * Handle pagination
-   */
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 0 && newPage < totalPages) {
-      setPage(newPage);
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'text': return 'bg-blue-100 text-blue-800';
+      case 'status': return 'bg-green-100 text-green-800';
+      case 'priority': return 'bg-purple-100 text-purple-800';
+      case 'date': return 'bg-orange-100 text-orange-800';
+      case 'select': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  /**
-   * Determine if a column should be displayed in the preview
-   * Limits the number of columns to keep the UI manageable
-   */
-  const getDisplayColumns = () => {
-    // Always show first column (usually name/title)
-    // Then add a sensible number of other columns
-    const maxPreviewColumns = 5;
-    return columns.slice(0, maxPreviewColumns);
-  };
-
-  const displayColumns = getDisplayColumns();
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl overflow-hidden">
+    <div 
+      className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+    >
+      <div 
+        className={`bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden transition-transform duration-300 ${isOpen ? 'scale-100' : 'scale-95'}`}
+      >
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">Import Preview</h2>
+            <h2 className="text-lg font-semibold text-gray-800">
+              Import Preview
+            </h2>
             <p className="text-sm text-gray-500">
-              Review the data before importing ({tasks.length} rows, {columns.length} columns)
+              {sourceType === 'excel' ? 'Excel' : 'CSV'} file: {fileName}
             </p>
           </div>
           <button
-            onClick={onCancel}
-            className="text-gray-500 hover:text-gray-700"
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -103,105 +111,126 @@ const ImportPreviewDialog: React.FC<ImportPreviewDialogProps> = ({
         
         {/* Content */}
         <div className="p-4">
-          {/* Source format notice */}
-          <div className={`mb-4 p-3 rounded-md ${sourceFormat === 'csv' ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}`}>
-            <p className={`text-sm ${sourceFormat === 'csv' ? 'text-amber-700' : 'text-blue-700'}`}>
-              <span className="font-medium">Source:</span> {sourceFormat === 'csv' ? 'CSV file (column types defaulted to text)' : 'Excel file with column type information'}
-            </p>
-          </div>
-          
-          {/* Preview table */}
-          <div className="border rounded-lg overflow-hidden mb-4">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {displayColumns.map(column => (
-                      <th
-                        key={column.id}
-                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>{column.title}</span>
-                          <span className="text-xs text-gray-400 font-normal">({column.type})</span>
-                        </div>
-                      </th>
+          <div className="mb-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">
+              Data Preview ({totalRows} row{totalRows !== 1 ? 's' : ''} total)
+              {totalRows > MAX_PREVIEW_ROWS && ` - showing first ${MAX_PREVIEW_ROWS}`}
+            </h3>
+            
+            {/* Data preview with aligned column types and headers */}
+            <div className="border rounded-md overflow-hidden">
+              {/* Column types section */}
+              <div className="bg-gray-50 border-b">
+                <div className="px-4 pt-3 pb-2">
+                  <h4 className="text-xs font-medium text-gray-500 mb-2">Column Types:</h4>
+                  <div className="grid" style={{ gridTemplateColumns: `repeat(${previewData.columns.length}, minmax(120px, 1fr))` }}>
+                    {previewData.columns.map((column) => (
+                      <div key={`type-${column.id}`} className="px-4">
+                        <span 
+                          className={`px-2 py-1 rounded-md text-xs font-medium inline-block transition-colors duration-200 ${getTypeColor(column.type)}`}
+                        >
+                          {column.type}
+                        </span>
+                      </div>
                     ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedTasks.map((task, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      {displayColumns.map(column => (
-                        <td key={column.id} className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-                          {task[column.id] || '-'}
-                        </td>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Table Container */}
+              <div className="overflow-x-auto max-h-[300px]">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      {previewData.columns.map((column) => (
+                        <th
+                          key={column.id}
+                          scope="col"
+                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px] min-w-[120px]"
+                        >
+                          {column.title}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Empty state for no data */}
-            {tasks.length === 0 && (
-              <div className="py-6 text-center">
-                <p className="text-gray-500 text-sm">No data to preview</p>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {previewTasks.length > 0 ? (
+                      previewTasks.map((task, index) => (
+                        <tr 
+                          key={task.id} 
+                          className="hover:bg-gray-50 transition-colors duration-150"
+                          style={{ 
+                            animationDelay: `${index * 50}ms`,
+                            animation: 'fadeIn 0.3s ease-in-out forwards'
+                          }}
+                        >
+                          {previewData.columns.map((column) => (
+                            <td 
+                              key={`${task.id}-${column.id}`} 
+                              className="px-4 py-3 text-sm text-gray-500 truncate"
+                            >
+                              {task[column.id] || ''}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td 
+                          colSpan={previewData.columns.length} 
+                          className="px-4 py-3 text-sm text-gray-500 text-center"
+                        >
+                          No data to preview
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
+            </div>
           </div>
           
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t pt-3">
-              <div className="text-sm text-gray-500">
-                Showing {page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, tasks.length)} of {tasks.length} rows
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={page === 0}
-                  className={`px-2 py-1 text-sm rounded ${page === 0 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={page >= totalPages - 1}
-                  className={`px-2 py-1 text-sm rounded ${page >= totalPages - 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
-                >
-                  Next
-                </button>
+          {/* Warning section */}
+          <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-4 transition-all duration-300 hover:bg-amber-100">
+            <div className="flex items-start">
+              <XCircleIcon className="h-5 w-5 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-amber-800">Important:</h3>
+                <p className="text-sm text-amber-700">
+                  Importing this data will replace your current table's content. This action cannot be undone.
+                  {sourceType === 'csv' && ' CSV imports will set all columns to text type by default.'}
+                </p>
               </div>
             </div>
-          )}
-
-          {/* Warning about column limitations */}
-          {columns.length > displayColumns.length && (
-            <div className="mt-4 text-sm text-gray-500">
-              <p>Only showing {displayColumns.length} of {columns.length} columns in the preview.</p>
-            </div>
-          )}
+          </div>
         </div>
         
         {/* Footer */}
-        <div className="p-4 border-t bg-gray-50 flex justify-end space-x-3">
+        <div className="p-4 border-t bg-gray-50 flex justify-end">
           <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 bg-white border border-gray-300 rounded-md flex items-center"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 bg-white border border-gray-300 rounded-md mr-2 transition-colors duration-200"
           >
-            <XCircleIcon className="h-4 w-4 mr-1" />
-            Cancel Import
+            Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center"
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center transition-colors duration-200"
           >
             <CheckIcon className="h-4 w-4 mr-1" />
             Confirm Import
           </button>
         </div>
       </div>
+      
+      <style>
+        {`
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}
+      </style>
     </div>
   );
 };

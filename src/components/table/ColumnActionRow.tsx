@@ -4,10 +4,11 @@
  * Provides action buttons for each column in the table
  * 
  * @module ColumnActionRow
+ * @version 1.0.2 - Fixed build errors with unused imports
  */
 
 import React from 'react';
-import { ArrowLeftIcon, ArrowRightIcon, ArrowDownIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Column } from '../../types/dataTypes';
 import { getPixelWidthFromClass } from '../../utils/tableUtils';
 
@@ -76,7 +77,7 @@ const ColumnActionButton: React.FC<ColumnActionButtonProps> = ({
 };
 
 /**
- * ColumnActionRow component that provides column manipulation tools
+ * ColumnActionRow component to display column-specific action buttons
  * 
  * @param props - Component props
  * @returns JSX Element
@@ -88,75 +89,61 @@ const ColumnActionRow: React.FC<ColumnActionRowProps> = ({
   onDeleteColumn 
 }) => {
   return (
-    <div className="flex border-b border-gray-200 bg-gray-50 py-1">
-      {/* Map through all columns to create action cells */}
+    <div className="flex">
       {columns.map((column, index) => {
-        const isSelectColumn = column.type === 'select';
-        const pixelWidth = getPixelWidthFromClass(column.minWidth);
+        // Calculate width based on column settings
+        let width = 0;
+        if (column.width) {
+          width = getPixelWidthFromClass(column.width);
+        }
+        
+        // Ensure minimum width for buttons to prevent overlapping
+        const actionWidth = Math.max(width, 120);
         
         return (
           <div 
-            key={`action-${column.id}`} 
-            className={`${column.width} ${column.minWidth || ''} flex items-center ${isSelectColumn ? 'justify-center' : 'justify-start'} gap-0 ${!isSelectColumn ? 'pl-4' : ''} flex-shrink-0`}
-            style={{
-              width: pixelWidth,
-              minWidth: pixelWidth,
-              maxWidth: pixelWidth,
-              boxSizing: 'border-box' // Ensure padding is included in width calculation
-            }}
+            key={column.id}
+            className="flex flex-shrink-0 justify-center items-center relative"
+            style={{ width: `${actionWidth}px` }}
           >
-            {/* Special handling for different column types */}
-            {isSelectColumn ? (
-              // Select column - no actions
-              <div className="flex items-center justify-start gap-1">
-                {/* No actions for the Select column */}
-              </div>
-            ) : (
-              <div className="flex items-center justify-start gap-1">
-                {/* Add column to the left button */}
+            <div className="flex space-x-1 absolute z-10">
+              {/* Left button - Don't show for first column if it's SELECT type */}
+              {!(index === 0 && column.type === 'select') && (
                 <ColumnActionButton
                   onClick={() => onAddColumnLeft(index)}
-                  tooltipText="Add column left"
+                  tooltipText="Add column to the left"
                   ariaLabel="Add column to the left"
                 >
-                  <div className="flex flex-col items-center justify-center space-y-0.5">
-                    <PlusIcon className="h-3.5 w-3.5" />
-                    <ArrowLeftIcon className="h-3.5 w-3.5" />
-                  </div>
+                  <ArrowLeftIcon className="h-3 w-3" />
+                  <PlusIcon className="h-3 w-3" />
                 </ColumnActionButton>
-                
-                {/* Add column to the right button */}
-                <ColumnActionButton
-                  onClick={() => onAddColumnRight(index)}
-                  tooltipText="Add column right"
-                  ariaLabel="Add column to the right"
-                >
-                  <div className="flex flex-col items-center justify-center space-y-0.5">
-                    <PlusIcon className="h-3.5 w-3.5" />
-                    <ArrowRightIcon className="h-3.5 w-3.5" />
-                  </div>
-                </ColumnActionButton>
-                
-                {/* Delete column button */}
+              )}
+              
+              {/* Right button */}
+              <ColumnActionButton
+                onClick={() => onAddColumnRight(index)}
+                tooltipText="Add column to the right"
+                ariaLabel="Add column to the right"
+              >
+                <PlusIcon className="h-3 w-3" />
+                <ArrowRightIcon className="h-3 w-3" />
+              </ColumnActionButton>
+              
+              {/* Delete button - Don't show for essential columns */}
+              {column.type !== 'select' && (
                 <ColumnActionButton
                   onClick={() => onDeleteColumn(column.id, index)}
                   tooltipText="Delete column"
                   ariaLabel="Delete column"
                   colorClass="red"
                 >
-                  <div className="flex flex-col items-center justify-center space-y-0.5">
-                    <TrashIcon className="h-3.5 w-3.5" />
-                    <ArrowDownIcon className="h-3.5 w-3.5" />
-                  </div>
+                  <TrashIcon className="h-3 w-3" />
                 </ColumnActionButton>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         );
       })}
-      
-      {/* Empty cell for the actions column - centered for consistency */}
-      <div className="w-[130px] flex-shrink-0 border-l border-gray-200 bg-gray-50 p-4 flex justify-center"></div>
     </div>
   );
 };

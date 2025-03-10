@@ -1,11 +1,11 @@
 /**
  * PowerFX Generate Dialog Component
  * 
- * Dialog for generating PowerFX code from the current table data
- * Uses the Claude API client to convert table data to PowerFX format
+ * Dialog for generating Power Apps Collection code from the current table data
+ * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 1.0.0 - Initial implementation
+ * @version 4.0.0 - Updated terminology to Power Apps Collection
  */
 
 import { Fragment, useState } from 'react';
@@ -16,6 +16,7 @@ import { convertTableToPowerFX } from '../../utils/claudeApiClient';
 
 /**
  * Props for the PowerFXGenerateDialog component
+ * @interface PowerFXGenerateDialogProps
  */
 interface PowerFXGenerateDialogProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ interface PowerFXGenerateDialogProps {
 }
 
 /**
- * PowerFXGenerateDialog component for generating PowerFX code
+ * PowerFXGenerateDialog component for generating Power Apps Collection code
  * @param props - Component props
  * @returns JSX Element
  */
@@ -31,16 +32,16 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
   // Get table data from context
   const { state: { tasks, columns } } = useTableContext();
   
-  // State for PowerFX code and loading status
+  // State for Power Apps Collection code and loading status
   const [powerFXCode, setPowerFXCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
 
   /**
-   * Generate PowerFX code from the current table data
+   * Generate Power Apps Collection code from the current table data
    */
-  const generatePowerFXCode = async () => {
+  const generateCollectionCode = async () => {
     setIsLoading(true);
     setError(null);
     
@@ -134,7 +135,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                     <button
                       type="button"
                       className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:w-auto"
-                      onClick={generatePowerFXCode}
+                      onClick={generateCollectionCode}
                     >
                       Generate Collection
                     </button>
@@ -205,7 +206,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                         <button
                           type="button"
                           className="inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                          onClick={generatePowerFXCode}
+                          onClick={generateCollectionCode}
                         >
                           Regenerate
                         </button>

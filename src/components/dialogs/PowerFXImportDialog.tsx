@@ -1,11 +1,11 @@
 /**
  * PowerFX Import Dialog Component
  * 
- * Dialog for importing PowerFX code and converting it to table data
- * Uses the Claude API client to convert PowerFX format to table data
+ * Dialog for importing Power Apps Collection code and converting it to table data
+ * Uses the Claude API client to convert Power Apps Collection format to table data
  * 
  * @module PowerFXImportDialog
- * @version 1.0.0 - Initial implementation
+ * @version 4.0.0 - Updated terminology to Power Apps Collection
  */
 
 import { Fragment, useState } from 'react';
@@ -16,6 +16,7 @@ import { convertPowerFXToTable } from '../../utils/claudeApiClient';
 
 /**
  * Props for the PowerFXImportDialog component
+ * @interface PowerFXImportDialogProps
  */
 interface PowerFXImportDialogProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ interface PowerFXImportDialogProps {
 }
 
 /**
- * PowerFXImportDialog component for importing PowerFX code
+ * PowerFXImportDialog component for importing Power Apps Collection code
  * @param props - Component props
  * @returns JSX Element
  */
@@ -31,13 +32,13 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
   // Get table context
   const { dispatch } = useTableContext();
   
-  // State for PowerFX code input and processing status
+  // State for Power Apps Collection code input and processing status
   const [powerFXCode, setPowerFXCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Handle PowerFX code input change
+   * Handle Power Apps Collection code input change
    * @param e - Change event
    */
   const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -45,11 +46,11 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
   };
 
   /**
-   * Import PowerFX code and convert to table data
+   * Import Power Apps Collection code and convert to table data
    */
-  const importPowerFXCode = async () => {
+  const importCollectionCode = async () => {
     if (!powerFXCode.trim()) {
-      setError('Please enter PowerFX code to import');
+      setError('Please enter Power Apps Collection code to import');
       return;
     }
 
@@ -57,7 +58,7 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
     setError(null);
     
     try {
-      // Convert PowerFX code to table data using Claude API
+      // Convert Power Apps Collection code to table data using Claude API
       const { columns, tasks } = await convertPowerFXToTable(powerFXCode);
       
       // Clear existing table and set new data
@@ -171,7 +172,7 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                     <button
                       type="button"
                       className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:ml-3 sm:w-auto"
-                      onClick={importPowerFXCode}
+                      onClick={importCollectionCode}
                       disabled={isLoading}
                     >
                       {isLoading ? (

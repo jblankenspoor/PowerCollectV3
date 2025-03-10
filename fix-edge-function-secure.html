@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Claude API Edge Function</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #5850ec;
+        }
+        pre {
+            background-color: #f7fafc;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+            margin: 20px 0;
+        }
+        code {
+            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+        }
+        .step {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .button {
+            display: inline-block;
+            background-color: #5850ec;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+        .button:hover {
+            background-color: #6875f5;
+        }
+        .note {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .important {
+            background-color: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .copy-button {
+            background-color: #4c51bf;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .copy-button:hover {
+            background-color: #5a67d8;
+        }
+        img {
+            max-width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fix Claude API Edge Function</h1>
+    <p>The "Invalid bearer token" error suggests that the Edge Function is using the wrong format for Claude API authentication. Claude changed their authentication format in newer versions of their API.</p>
+    
+    <div class="important">
+        <h3>Root Cause Identified</h3>
+        <p>Your Edge Function is using <code>'Authorization': `Bearer ${CLAUDE_API_KEY}`</code> which is not the correct format for Claude API. The current Claude API expects <code>'x-api-key': CLAUDE_API_KEY</code> instead.</p>
+    </div>
+    
+    <div class="step">
+        <h2>Step 1: Open Supabase Dashboard</h2>
+        <p>Go to your Supabase project dashboard:</p>
+        <a href="https://supabase.com/dashboard/project/lykwvupycqukyfapqdyp" class="button" target="_blank">Open Supabase Dashboard</a>
+    </div>
+    
+    <div class="step">
+        <h2>Step 2: Navigate to Edge Functions</h2>
+        <p>In the left sidebar, click on <strong>Edge Functions</strong>.</p>
+    </div>
+    
+    <div class="step">
+        <h2>Step 3: Select Your Edge Function</h2>
+        <p>Click on the <strong>claude-api-proxy</strong> function.</p>
+    </div>
+    
+    <div class="step">
+        <h2>Step 4: Edit the Function Code</h2>
+        <p>You need to edit the Edge Function code to use the correct authentication format. Look for the section where it creates headers for the Claude API request, and update it to use <code>'x-api-key'</code> instead of <code>'Authorization'</code>.</p>
+        
+        <button class="copy-button" onclick="copyCode()">Copy Updated Code</button>
+        <pre><code>/**
+ * Claude API Proxy Edge Function
+ * 
+ * This Supabase Edge Function acts as a proxy for the Claude API to avoid CORS issues.
+ * It forwards requests from the frontend to the Claude API and returns the responses.
+ * 
+ * @version 1.0.3 - Fixed Claude API authentication header format
+ */
+
+// deno-lint-ignore-file no-explicit-any
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+
+const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+// The API key is stored as a secret in Supabase
+const CLAUDE_API_KEY = Deno.env.get('CLAUDE_API_KEY');
+
+// Handle CORS for local development
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+serve(async (req) => {
+  // Log request details
+  console.log(`Request received: ${req.method} ${req.url}`);
+  
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    // Check if API key is set
+    if (!CLAUDE_API_KEY) {
+      console.error('Claude API key not configured in environment variables');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Claude API key not configured. Set the CLAUDE_API_KEY secret in the Supabase dashboard.' 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 500 
+        }
+      );
+    }
+    
+    // Log API key status (safely)
+    console.log('Claude API key status:', CLAUDE_API_KEY ? 
+      `Configured (starts with: ${CLAUDE_API_KEY.substring(0, 10)}...)` : 
+      'Not configured');
+
+    // Parse the request body from the frontend
+    let requestData;
+    try {
+      requestData = await req.json();
+      console.log('Request data received:', {
+        model: requestData.model,
+        max_tokens: requestData.max_tokens,
+        message_count: requestData.messages?.length || 0
+      });
+    } catch (error) {
+      console.error('Error parsing request JSON:', error);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid JSON in request body',
+          details: error.message
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 400 
+        }
+      );
+    }
+    
+    const { model, messages, system, max_tokens } = requestData;
+
+    // Validate required fields
+    if (!model || !messages || !Array.isArray(messages) || messages.length === 0) {
+      console.error('Missing required fields in request');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Missing required fields: model, messages' 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 400 
+        }
+      );
+    }
+
+    console.log('Proxying request to Claude API...');
+    
+    // Prepare headers for Claude API - UPDATED TO USE CORRECT FORMAT
+    const claudeHeaders = {
+      'Content-Type': 'application/json',
+      'x-api-key': CLAUDE_API_KEY,          // Using x-api-key instead of Authorization
+      'anthropic-version': '2023-06-01'
+    };
+    
+    console.log('Claude API request headers:', {
+      'Content-Type': claudeHeaders['Content-Type'],
+      'x-api-key': 'PRESENT (masked)',
+      'anthropic-version': claudeHeaders['anthropic-version']
+    });
+    
+    // Prepare request body for Claude API
+    const claudeRequestBody = {
+      model,
+      max_tokens,
+      messages,
+      system
+    };
+    
+    console.log('Claude API request body:', JSON.stringify(claudeRequestBody, null, 2));
+    
+    // Make the request to Claude API
+    let response;
+    try {
+      response = await fetch(CLAUDE_API_URL, {
+        method: 'POST',
+        headers: claudeHeaders,
+        body: JSON.stringify(claudeRequestBody)
+      });
+      
+      console.log('Claude API response status:', response.status);
+      console.log('Claude API response headers:', Object.fromEntries(response.headers.entries()));
+    } catch (error) {
+      console.error('Network error calling Claude API:', error);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Network error calling Claude API',
+          details: error.message
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 500 
+        }
+      );
+    }
+    
+    // Get the response data
+    let data;
+    try {
+      const responseText = await response.text();
+      console.log('Claude API response text (first 200 chars):', responseText.substring(0, 200) + '...');
+      
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Error parsing Claude API response as JSON:', parseError);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Invalid JSON response from Claude API',
+            details: responseText.substring(0, 500)
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+            status: 502 
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error reading Claude API response:', error);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Error reading Claude API response',
+          details: error.message
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 502 
+        }
+      );
+    }
+    
+    // If Claude API returned an error
+    if (!response.ok) {
+      console.error('Claude API error response:', data);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Claude API error',
+          details: data
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: response.status 
+        }
+      );
+    }
+    
+    console.log('Successfully proxied Claude API response');
+    
+    // Return the response to the frontend
+    return new Response(
+      JSON.stringify(data),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      }
+    );
+  } catch (error) {
+    console.error('Unexpected error in Claude API proxy:', error);
+    
+    return new Response(
+      JSON.stringify({ 
+        error: error.message || 'An unexpected error occurred',
+        details: typeof error === 'object' ? Object.getOwnPropertyNames(error).reduce((acc, key) => {
+          acc[key] = (error as any)[key]?.toString();
+          return acc;
+        }, {} as Record<string, string>) : {}
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 500 
+      }
+    );
+  }
+});</code></pre>
+    </div>
+    
+    <div class="step">
+        <h2>Step 5: Deploy the Updated Function</h2>
+        <p>After updating the code:</p>
+        <ol>
+            <li>Click <strong>Deploy</strong> to deploy the updated Edge Function</li>
+            <li>Make sure you also have the correct Claude API key set in the environment variables</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h2>Step 6: Test the Updated Function</h2>
+        <p>After deploying the updated function:</p>
+        <ol>
+            <li>Return to your application</li>
+            <li>Try generating Power FX code again</li>
+            <li>Or use the test page to verify if the issue is resolved</li>
+        </ol>
+        <a href="test-supabase-function-secure.html" class="button">Open Test Page</a>
+    </div>
+    
+    <div class="note">
+        <h3>Explanation of the Fix</h3>
+        <p>Claude API changed their authentication method. The key changes are:</p>
+        <ul>
+            <li>Old method: <code>'Authorization': 'Bearer YOUR_API_KEY'</code></li>
+            <li>New method: <code>'x-api-key': 'YOUR_API_KEY'</code></li>
+        </ul>
+        <p>This update changes the Edge Function to use the new method.</p>
+    </div>
+    
+    <script>
+        function copyCode() {
+            const codeBlock = document.querySelector('pre code');
+            const textArea = document.createElement('textarea');
+            textArea.value = codeBlock.textContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            const button = document.querySelector('.copy-button');
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            setTimeout(() => {
+                button.textContent = originalText;
+            }, 2000);
+        }
+    </script>
+</body>
+</html> 

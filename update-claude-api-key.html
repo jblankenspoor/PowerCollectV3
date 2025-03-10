@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Claude API Key in Supabase</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #5850ec;
+        }
+        pre {
+            background-color: #f7fafc;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+            margin: 20px 0;
+        }
+        code {
+            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+        }
+        .step {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .button {
+            display: inline-block;
+            background-color: #5850ec;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+        .button:hover {
+            background-color: #6875f5;
+        }
+        .note {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .copy-button {
+            background-color: #4c51bf;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .copy-button:hover {
+            background-color: #5a67d8;
+        }
+        img {
+            max-width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Update Claude API Key in Supabase</h1>
+    <p>Follow these steps to update the Claude API key in your Supabase Edge Function. The current error <code>"Invalid bearer token"</code> indicates that the API key stored in Supabase is either expired, revoked, or not set correctly.</p>
+    
+    <div class="note">
+        <h3>Error Diagnosis</h3>
+        <p>You're seeing the error: <code>"Invalid bearer token"</code></p>
+        <p>This means your Edge Function is correctly deployed and can connect to the Claude API, but the API key being used is rejected by Claude.</p>
+    </div>
+    
+    <div class="step">
+        <h2>Step 1: Get Your Claude API Key</h2>
+        <p>First, make sure you have a valid Claude API key. You can get this from the Anthropic Console:</p>
+        <ol>
+            <li>Log in to <a href="https://console.anthropic.com/" target="_blank">Anthropic Console</a></li>
+            <li>Navigate to the API Keys section</li>
+            <li>Check if your existing key is still valid, or create a new one if needed</li>
+        </ol>
+        <div class="note">
+            <h3>Your Current API Key</h3>
+            <pre><code>YOUR_CLAUDE_API_KEY_HERE</code></pre>
+            <p>The error suggests this key might have expired or been revoked. You may need to generate a new one.</p>
+        </div>
+    </div>
+    
+    <div class="step">
+        <h2>Step 2: Open Supabase Dashboard</h2>
+        <p>Go to your Supabase project dashboard:</p>
+        <a href="https://supabase.com/dashboard/project/lykwvupycqukyfapqdyp" class="button" target="_blank">Open Supabase Dashboard</a>
+    </div>
+    
+    <div class="step">
+        <h2>Step 3: Navigate to Edge Functions</h2>
+        <p>In the left sidebar, click on <strong>Edge Functions</strong>.</p>
+    </div>
+    
+    <div class="step">
+        <h2>Step 4: Select Your Edge Function</h2>
+        <p>Click on the <strong>claude-api-proxy</strong> function in the list.</p>
+    </div>
+    
+    <div class="step">
+        <h2>Step 5: Update Environment Variable</h2>
+        <ol>
+            <li>Click on the <strong>Settings</strong> tab for your function</li>
+            <li>Look for the <strong>Environment Variables</strong> section</li>
+            <li>Find the entry for <code>CLAUDE_API_KEY</code></li>
+            <li>If it exists, update its value to your valid API key</li>
+            <li>If it doesn't exist, add a new variable with name <code>CLAUDE_API_KEY</code> and your API key as the value</li>
+            <li>Click <strong>Save</strong> to update the environment variables</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h2>Step 6: Test the Updated Function</h2>
+        <p>After updating the API key:</p>
+        <ol>
+            <li>Return to your application</li>
+            <li>Try generating Power FX code again</li>
+            <li>If you still encounter issues, use the test page to diagnose further</li>
+        </ol>
+        <a href="test-supabase-function.html" class="button">Open Test Page</a>
+    </div>
+    
+    <div class="note">
+        <h3>Alternative: Update API Key in Client</h3>
+        <p>As a temporary workaround, you could also modify your client-side code to use a direct connection to Claude API, but this is not recommended for production as it would expose your API key in the browser.</p>
+    </div>
+    
+    <script>
+        // Add any scripts if needed
+    </script>
+</body>
+</html> 

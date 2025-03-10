@@ -5,7 +5,7 @@
  * Uses useReducer for more predictable state management.
  * 
  * @module TableContext
- * @version 1.2.2 - Added import preview functionality
+ * @version 1.3.0 - Added PowerFX code generation functionality
  */
 
 import React, { createContext, useContext, useReducer, ReactNode, Dispatch } from 'react';
@@ -79,12 +79,17 @@ interface TableState {
   showImportDialog: boolean;
   showExportDialog: boolean;
   showImportPreviewDialog: boolean;
+  showPowerFXDialog: boolean;
+  showPowerFXImportDialog: boolean;
   importPreviewData: { tasks: Task[]; columns: Column[] } | null;
   importPreviewSourceType: 'excel' | 'csv' | null;
   importPreviewFileName: string;
   importErrors: string[];
   isImporting: boolean;
   isExporting: boolean;
+  isGeneratingPowerFX: boolean;
+  powerFXCode: string | null;
+  powerFXImportCode: string | null;
 }
 
 /**
@@ -104,12 +109,17 @@ const initialState: TableState = {
   showImportDialog: false,
   showExportDialog: false,
   showImportPreviewDialog: false,
+  showPowerFXDialog: false,
+  showPowerFXImportDialog: false,
   importPreviewData: null,
   importPreviewSourceType: null,
   importPreviewFileName: '',
   importErrors: [],
   isImporting: false,
   isExporting: false,
+  isGeneratingPowerFX: false,
+  powerFXCode: null,
+  powerFXImportCode: null,
 };
 
 /**
@@ -138,9 +148,14 @@ export type TableAction =
   | { type: 'APPLY_PASTED_DATA'; payload: { data: string[][]; startTaskId: string; startColumnId: string } }
   | { type: 'TOGGLE_IMPORT_DIALOG'; payload?: boolean }
   | { type: 'TOGGLE_EXPORT_DIALOG'; payload?: boolean }
+  | { type: 'TOGGLE_POWERFX_DIALOG'; payload?: boolean }
+  | { type: 'TOGGLE_POWERFX_IMPORT_DIALOG'; payload?: boolean }
   | { type: 'SET_IMPORT_ERRORS'; payload: string[] }
   | { type: 'SET_IMPORTING'; payload: boolean }
   | { type: 'SET_EXPORTING'; payload: boolean }
+  | { type: 'SET_GENERATING_POWERFX'; payload: boolean }
+  | { type: 'SET_POWERFX_CODE'; payload: string }
+  | { type: 'SET_POWERFX_IMPORT_CODE'; payload: string }
   | { type: 'TOGGLE_IMPORT_PREVIEW_DIALOG'; payload?: boolean }
   | { type: 'SET_IMPORT_PREVIEW_DATA'; payload: { tasks: Task[]; columns: Column[]; sourceType: 'excel' | 'csv'; fileName: string } }
   | { type: 'IMPORT_DATA'; payload: { tasks: Task[]; columns: Column[] } };
@@ -535,6 +550,37 @@ function tableReducer(state: TableState, action: TableAction): TableState {
         showImportDialog: false,
         importErrors: [],
         isImporting: false
+      };
+
+    case 'TOGGLE_POWERFX_DIALOG':
+      return {
+        ...state,
+        showPowerFXDialog: action.payload !== undefined ? action.payload : !state.showPowerFXDialog,
+      };
+
+    case 'SET_GENERATING_POWERFX':
+      return {
+        ...state,
+        isGeneratingPowerFX: action.payload,
+      };
+
+    case 'SET_POWERFX_CODE':
+      return {
+        ...state,
+        powerFXCode: action.payload,
+        isGeneratingPowerFX: false,
+      };
+
+    case 'SET_POWERFX_IMPORT_CODE':
+      return {
+        ...state,
+        powerFXImportCode: action.payload,
+      };
+
+    case 'TOGGLE_POWERFX_IMPORT_DIALOG':
+      return {
+        ...state,
+        showPowerFXImportDialog: action.payload !== undefined ? action.payload : !state.showPowerFXImportDialog,
       };
 
     default:

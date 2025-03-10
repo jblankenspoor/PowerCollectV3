@@ -4,7 +4,7 @@
  * Functions for interacting with the Claude API via Supabase Edge Function
  * 
  * @module claudeApiClient
- * @version 0.1.0 - Initial implementation of PowerFX generation
+ * @version 4.0.0 - Implementation of PowerFX generation and import functionality
  */
 
 import { Column, Task } from '../types/dataTypes';

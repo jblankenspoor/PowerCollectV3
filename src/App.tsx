@@ -45,14 +45,14 @@ function App() {
               aria-label="Generate Power FX code"
               onClick={() => setShowGenerateDialog(true)}
             >
-              Generate Power FX
+              Generate Power Apps Collection
             </button>
             <button 
               className="px-4 py-2 bg-gray-100 text-gray-900 rounded hover:bg-gray-200 font-medium"
               aria-label="Import Power FX code"
               onClick={() => setShowImportDialog(true)}
             >
-              Import Power FX
+              Import Power Apps Collection
             </button>
           </div>
         </div>

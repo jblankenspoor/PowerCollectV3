@@ -126,11 +126,11 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                   </div>
                   <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
                     <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
-                      Import PowerFX Code
+                      Import Power Apps Collection
                     </Dialog.Title>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Paste PowerFX code to convert it to a table. This will replace your current table data.
+                        Paste Power Apps collection code to convert it to a table. This will replace your current data.
                       </p>
                     </div>
                   </div>
@@ -139,7 +139,7 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                 <div className="mt-5 sm:mt-4">
                   <div className="mb-4">
                     <label htmlFor="powerfx-code" className="block text-sm font-medium leading-6 text-gray-900">
-                      PowerFX Code
+                      Collection Code
                     </label>
                     <div className="mt-2">
                       <textarea
@@ -147,7 +147,7 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                         name="powerfx-code"
                         rows={10}
                         className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                        placeholder="Paste your PowerFX code here..."
+                        placeholder="Paste your Power Apps collection code here..."
                         value={powerFXCode}
                         onChange={handleCodeChange}
                       />
@@ -158,7 +158,7 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                     <div className="rounded-md bg-red-50 p-4 mb-4">
                       <div className="flex">
                         <div className="ml-3">
-                          <h3 className="text-sm font-medium text-red-800">Error importing PowerFX code</h3>
+                          <h3 className="text-sm font-medium text-red-800">Error importing collection</h3>
                           <div className="mt-2 text-sm text-red-700">
                             <p>{error}</p>
                           </div>

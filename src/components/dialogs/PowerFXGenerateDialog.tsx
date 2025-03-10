@@ -119,11 +119,11 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                   </div>
                   <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
                     <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
-                      Generate PowerFX Code
+                      Generate Power Apps Collection
                     </Dialog.Title>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Generate PowerFX code for creating a collection in Power Apps from your table data.
+                        Create a Power Apps collection from your table data.
                       </p>
                     </div>
                   </div>
@@ -136,14 +136,14 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                       className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:w-auto"
                       onClick={generatePowerFXCode}
                     >
-                      Generate PowerFX
+                      Generate Collection
                     </button>
                   )}
 
                   {isLoading && (
                     <div className="flex justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                      <p className="ml-2 text-sm text-gray-500">Generating PowerFX code...</p>
+                      <p className="ml-2 text-sm text-gray-500">Generating collection code...</p>
                     </div>
                   )}
 
@@ -151,7 +151,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                     <div className="rounded-md bg-red-50 p-4">
                       <div className="flex">
                         <div className="ml-3">
-                          <h3 className="text-sm font-medium text-red-800">Error generating PowerFX code</h3>
+                          <h3 className="text-sm font-medium text-red-800">Error generating collection</h3>
                           <div className="mt-2 text-sm text-red-700">
                             <p>{error}</p>
                           </div>
@@ -172,7 +172,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                   {powerFXCode && (
                     <div className="mt-4">
                       <div className="flex justify-between mb-2">
-                        <h4 className="text-sm font-medium text-gray-900">Generated PowerFX Code</h4>
+                        <h4 className="text-sm font-medium text-gray-900">Generated Collection Code</h4>
                         <button
                           type="button"
                           className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"

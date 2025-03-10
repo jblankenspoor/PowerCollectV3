@@ -10,12 +10,18 @@
 import { TableProvider } from './context/TableContext';
 import DataTable from './components/table/DataTable';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+import { useState } from 'react';
+import { PowerFXGenerateDialog, PowerFXImportDialog } from './components/dialogs';
 
 /**
  * App component that provides context and renders the main UI
  * @returns JSX Element
  */
 function App() {
+  // State for dialog visibility
+  const [showGenerateDialog, setShowGenerateDialog] = useState<boolean>(false);
+  const [showImportDialog, setShowImportDialog] = useState<boolean>(false);
+  
   return (
     <TableProvider>
       <div className="min-h-screen bg-gray-50 py-6 relative">
@@ -33,12 +39,20 @@ function App() {
             <DataTable />
           </div>
           
-          <div className="mt-6">
+          <div className="mt-6 flex space-x-4">
             <button 
-              className="px-4 py-2 bg-gray-100 text-gray-900 rounded hover:bg-gray-200 font-medium"
+              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-medium"
               aria-label="Generate Power FX code"
+              onClick={() => setShowGenerateDialog(true)}
             >
               Generate Power FX
+            </button>
+            <button 
+              className="px-4 py-2 bg-gray-100 text-gray-900 rounded hover:bg-gray-200 font-medium"
+              aria-label="Import Power FX code"
+              onClick={() => setShowImportDialog(true)}
+            >
+              Import Power FX
             </button>
           </div>
         </div>
@@ -48,6 +62,17 @@ function App() {
           v3.2.14
         </div>
       </div>
+      
+      {/* PowerFX Dialogs */}
+      <PowerFXGenerateDialog 
+        isOpen={showGenerateDialog} 
+        onClose={() => setShowGenerateDialog(false)} 
+      />
+      <PowerFXImportDialog 
+        isOpen={showImportDialog} 
+        onClose={() => setShowImportDialog(false)} 
+      />
+      
       <SpeedInsights />
     </TableProvider>
   );

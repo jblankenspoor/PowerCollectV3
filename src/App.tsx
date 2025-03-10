@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 3.2.13 - Fixed column action row styling for consistent rendering
+ * @version 3.2.14 - Added Claude API integration with PowerFX collection generation
  */
 
 import { TableProvider } from './context/TableContext';
@@ -45,7 +45,7 @@ function App() {
         
         {/* Version number in the bottom left corner */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v3.2.13
+          v3.2.14
         </div>
       </div>
       <SpeedInsights />

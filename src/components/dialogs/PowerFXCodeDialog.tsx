@@ -5,11 +5,11 @@
  * Allows users to copy the code to the clipboard.
  * 
  * @module PowerFXCodeDialog
- * @version 0.2.1 - Added Supabase API key error handling
+ * @version 0.2.2 - Fixed unused import
  */
 
 import React, { useState, useRef } from 'react';
-import { XMarkIcon, ClipboardDocumentIcon, CheckIcon, CodeBracketIcon, ExclamationCircleIcon, ExclamationTriangleIcon, KeyIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ClipboardDocumentIcon, CheckIcon, CodeBracketIcon, ExclamationTriangleIcon, KeyIcon } from '@heroicons/react/24/outline';
 import { useTableContext } from '../../context/TableContext';
 
 /**
@@ -198,7 +198,7 @@ const PowerFXCodeDialog: React.FC = () => {
         
         {/* Version indicator */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-400">
-          v0.2.1
+          v0.2.2
         </div>
       </div>
     </div>

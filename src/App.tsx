@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 4.1.5 - Fixed column title formatting for "Start Date" in Power FX generation
+ * @version 5.0.0 - Implemented editable headers feature with proper PowerFX formatting
  */
 
 import { TableProvider } from './context/TableContext';
@@ -59,7 +59,7 @@ function App() {
         
         {/* Version number in the bottom left corner */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v4.1.5
+          v5.0.0
         </div>
       </div>
       

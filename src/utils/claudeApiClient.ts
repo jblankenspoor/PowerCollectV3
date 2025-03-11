@@ -4,7 +4,7 @@
  * Functions for interacting with the Claude API via Supabase Edge Function
  * 
  * @module claudeApiClient
- * @version 4.0.7 - Reverted dropdown styling to fix overlapping issue
+ * @version 4.1.5 - Fixed column title formatting for "Start Date" in Power FX generation
  */
 
 import { Column, Task } from '../types/dataTypes';
@@ -61,16 +61,9 @@ export const getClaudeModelDisplayName = (model: ClaudeModel): string => {
  * 
  * @param tasks - Array of task objects from the table
  * @param columns - Array of column definitions
- * @param model - Claude model to use for generation
- * @returns Promise containing the generated Power FX code
- */
-/**
- * Convert table data to Power FX code using Claude API via Supabase
- * 
- * @param tasks - Array of task objects from the table
- * @param columns - Array of column definitions
  * @param model - Claude model to use for generation (defaults to Claude 3.5 Haiku)
  * @returns Promise containing the generated Power FX code
+ * @version 4.2.0 - Fixed issue where old column titles were still visible to Claude 3.5 Haiku
  */
 export const convertTableToPowerFX = async (
   tasks: Task[],
@@ -97,11 +90,14 @@ ClearCollect(
 // Made with PowerCollect https://powercollect.jacco.me`;
     }
 
+    // Make a deep clone of the columns to avoid any reference issues
+    const clonedColumns = JSON.parse(JSON.stringify(columns));
+
     // Filter out the "select" column
-    const filteredColumns = columns.filter(col => col.id !== 'select');
+    const filteredColumns = clonedColumns.filter((col: Column) => col.id !== 'select');
     
     // Get a list of valid column IDs (excluding 'select')
-    const validColumnIds = filteredColumns.map(col => col.id);
+    const validColumnIds = filteredColumns.map((col: Column) => col.id);
     
     // Create a deep copy of tasks and only include properties that correspond to current columns
     const filteredTasks = tasks.map(task => {
@@ -109,7 +105,7 @@ ClearCollect(
       const filteredTask: Record<string, any> = {};
       
       // Only include properties that exist in the current columns
-      validColumnIds.forEach(columnId => {
+      validColumnIds.forEach((columnId: string) => {
         if (columnId in task) {
           filteredTask[columnId] = task[columnId];
         }
@@ -118,15 +114,46 @@ ClearCollect(
       return filteredTask;
     });
 
-    // Prepare the data for Claude
+    // Log the column titles to help with debugging
+    console.log(`Column titles before preparing for Claude API (${model}):`);
+    filteredColumns.forEach((col: Column) => {
+      console.log(`- ${col.id}: original="${col.title}", display="${col.displayTitle || col.title.toUpperCase()}"`);
+    });
+
+    // Add a timestamp to prevent potential caching issues
+    const timestamp = new Date().toISOString();
+    console.log(`Request timestamp: ${timestamp}`);
+
+    // Prepare the data for Claude with the original case column titles
+    // Creating completely new objects to eliminate any traces of old titles or displayTitles
     const tableData = {
-      columns: filteredColumns.map(col => ({
-        id: col.id,
-        title: col.title,
-        type: col.type
-      })),
-      tasks: filteredTasks
+      timestamp: timestamp, // Add timestamp to force fresh request
+      columns: filteredColumns.map((col: Column) => {
+        // Create brand new objects with only the necessary properties
+        // This ensures no references to old titles from object spread or cloning
+        return {
+          id: col.id,
+          title: col.title, // Use the current title
+          type: col.type
+        };
+      }),
+      tasks: (() => {
+        // Create completely new task objects with only the properties we need
+        return filteredTasks.map(task => {
+          const newTask: Record<string, any> = {};
+          // Only include properties that match with current column IDs
+          validColumnIds.forEach((colId: string) => {
+            if (colId in task) {
+              newTask[colId] = task[colId];
+            }
+          });
+          return newTask;
+        });
+      })()
     };
+
+    // Log the prepared data to verify column titles
+    console.log(`Prepared table data for Claude API (${model}):`, JSON.stringify(tableData, null, 2));
 
     // Create the system prompt for Claude
     const systemPrompt = `
@@ -136,13 +163,27 @@ Follow these specific guidelines:
 - Use this format for the collection:
   ClearCollect(
     PowerCollectData,
-    {
-    Number:1, Month: "January", StartDate: Date(2019,1,1), Favorite: false,
-    Number:2, Month: "February", StartDate: Date(2019,2,1), Favorite: false}
-     }
+    [
+      {
+        Number: 1, 
+        Month: "January", 
+        "Start Date": Date(2019,1,1), 
+        Favorite: false
+      },
+      {
+        Number: 2, 
+        Month: "February", 
+        "Start Date": Date(2019,2,1), 
+        Favorite: false
+      }
+    ]
   );
 - Name the collection "PowerCollectData"
 - Structure each record to match the exact schema of the provided JSON data
+- CRITICAL: Use the exact column titles as provided in the JSON data - maintain the same case (uppercase/lowercase) exactly as shown in the columns.title field
+- For column titles with spaces, always enclose them in double quotes (e.g., "Start Date")
+- For column titles without spaces, quotes are optional
+- Do not use any other version of column titles that might appear elsewhere in the data
 - Preserve all data types properly (text, number, date, boolean, etc.)
 - Format the code with proper indentation for readability
 - Make sure that additional text is always used as a comment
@@ -150,8 +191,8 @@ Follow these specific guidelines:
   * The schema/structure of the data
   * Any data type conversions being performed
   * Add: "Made with PowerCollect https://powercollect.jacco.me"
-- Only respond with the complete, ready-to-use Power FX code and nothing else, don't include any other text or comments formulaes
 - IMPORTANT: Do NOT add triple backticks (\`\`\`) at the beginning or end of your code
+- IMPORTANT: Do NOT cache your response, use the latest data provided to you in this request (notice the timestamp)
 `;
 
     console.log('Making API request to Claude via Supabase...');
@@ -165,56 +206,75 @@ Follow these specific guidelines:
       'Authorization': 'Bearer token PRESENT'
     });
     
-    // Prepare request body
-    const requestBody = {
+    // Prepare request body with model-specific adjustments
+    let requestBody = {
       model: model,
       max_tokens: 4000,
+      temperature: 0.0, // Use a temperature of 0 to make responses more deterministic
       messages: [
         {
           role: 'user',
-          content: `Create a Power Apps collection in Power FX code using this table data. The collection should be optimized for use in a Power Apps canvas app. Here's the data to convert: ${JSON.stringify(tableData, null, 2)}`
+          content: `Create a Power Apps collection in Power FX code using this table data. The collection should be optimized for use in a Power Apps canvas app. Here's the data to convert (timestamp: ${timestamp}): ${JSON.stringify(tableData, null, 2)}`
         }
       ],
       system: systemPrompt
     };
     
     console.log(`Making request to Claude API (${model}) via Supabase...`);
+    console.log(`Request content: ${requestBody.messages[0].content.substring(0, 100)}...`);
     
-    // Make the API request
-    const response = await fetch(SUPABASE_FUNCTION_URL, {
+    // Create standard request settings
+    const requestUrl = SUPABASE_FUNCTION_URL;
+    const requestOptions: RequestInit = {
       method: 'POST',
       headers: getSupabaseHeaders(),
-      body: JSON.stringify(requestBody)
-    });
+      body: JSON.stringify(requestBody),
+      cache: 'no-store' as RequestCache // Explicitly type as RequestCache
+    };
     
-    // Check if the request was successful
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response from Claude API:', errorText);
-      console.error('Request details:', { 
-        model, 
-        url: SUPABASE_FUNCTION_URL,
-        status: response.status,
-        statusText: response.statusText 
-      });
+    console.log(`Starting fetch request to ${requestUrl} with model ${model}...`);
+    
+    try {
+      // Make the API request
+      const response = await fetch(requestUrl, requestOptions);
       
-      // Provide a more helpful error message
-      if (response.status === 404) {
-        throw new Error(`Error: The selected model "${getClaudeModelDisplayName(model)}" (${model}) is not available or not supported by the API endpoint. Please try a different model.`);
-      } else {
-        throw new Error(`Error from Claude API: ${response.status} ${response.statusText}. Please try again or select a different model.`);
+      // Check if the request was successful
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response from Claude API:', errorText);
+        console.error('Request details:', { 
+          model, 
+          url: requestUrl,
+          status: response.status,
+          statusText: response.statusText 
+        });
+        
+        // Provide a more helpful error message
+        if (response.status === 404) {
+          throw new Error(`Error: The selected model "${getClaudeModelDisplayName(model)}" (${model}) is not available or not supported by the API endpoint. Please try a different model.`);
+        } else {
+          throw new Error(`Error from Claude API: ${response.status} ${response.statusText}. Please try again or select a different model.`);
+        }
       }
-    }
-    
-    // Parse the response
-    const data = await response.json();
-    console.log('Response from Claude API:', data);
-    
-    // Extract the Power FX code from the response
-    if (data.content && data.content.length > 0) {
-      return data.content[0].text;
-    } else {
-      throw new Error('No content returned from Claude API');
+      
+      // Parse the response
+      const data = await response.json();
+      console.log('Response from Claude API:', data);
+      
+      // Extract the Power FX code from the response
+      if (data.content && data.content.length > 0) {
+        return data.content[0].text;
+      } else {
+        throw new Error('No content returned from Claude API');
+      }
+    } catch (fetchError) {
+      console.error('Fetch error details:', fetchError);
+      
+      if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
+        throw new Error(`Network error when connecting to Supabase. Please check your internet connection and try again. Details: ${fetchError.message}`);
+      }
+      
+      throw fetchError;
     }
   } catch (error) {
     console.error('Error converting table to Power FX:', error);
@@ -228,6 +288,7 @@ Follow these specific guidelines:
  * @param powerFXCode - Power FX code to convert to table data
  * @param model - Claude model to use for conversion
  * @returns Promise containing the parsed table data
+ * @version 4.2.0 - Improved data cleaning to prevent old column titles from affecting Claude API
  */
 export const convertPowerFXToTable = async (
   powerFXCode: string,
@@ -268,6 +329,9 @@ Follow these guidelines:
 - Preserve all data types properly
 - Return only the JSON data and nothing else
 - The JSON should have a "columns" array with column definitions and a "tasks" array with the data
+- CRITICAL: Create completely new column objects with only id, title, and type properties
+- Use the EXACT column titles as they appear in the Power FX code, maintaining case sensitivity
+- Do not reference or include any previous versions of column titles that might be in the data
 - IMPORTANT: Do NOT add triple backticks (\`\`\`) at the beginning or end of your response
 `;
 
@@ -281,7 +345,9 @@ Follow these guidelines:
           content: `Parse this Power FX code and convert it to JSON: ${powerFXCode}`
         }
       ],
-      system: systemPrompt
+      system: systemPrompt,
+      // Adding a flag to indicate that we only want to use current column titles
+      useOnlyCurrentTitles: true // Signal to Claude API to ignore any historical title metadata
     };
     
     console.log('Making request to Claude API via Supabase...');
@@ -320,7 +386,19 @@ Follow these guidelines:
     if (data.content && data.content.length > 0) {
       try {
         // Try to parse the response as JSON
-        const jsonData = JSON.parse(data.content[0].text);
+        let jsonData = JSON.parse(data.content[0].text);
+        
+        // Clean the column data to ensure no old title references remain
+        if (jsonData.columns && Array.isArray(jsonData.columns)) {
+          // Create completely new column objects with only the necessary properties
+          jsonData.columns = jsonData.columns.map((col: any) => ({
+            id: col.id,
+            title: col.title, // Use only the parsed title
+            type: col.type || 'text',
+            width: col.width || 'w-40',
+            minWidth: col.minWidth || 'min-w-[160px]'
+          }));
+        }
         
         // Add the Select column if it doesn't exist
         if (!jsonData.columns.some((col: Column) => col.id === 'select')) {

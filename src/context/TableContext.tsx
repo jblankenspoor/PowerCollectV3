@@ -5,7 +5,7 @@
  * Uses useReducer for more predictable state management.
  * 
  * @module TableContext
- * @version 1.2.2 - Added import preview functionality
+ * @version 4.1.2 - Added preservation of column title case for API requests
  */
 
 import React, { createContext, useContext, useReducer, ReactNode, Dispatch } from 'react';
@@ -46,12 +46,12 @@ const initialTasks: Task[] = [
  * Initial column definitions with fixed widths
  */
 const initialColumns: Column[] = [
-  { id: 'select', title: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
-  { id: 'name', title: 'NAME', type: 'text', width: 'w-48', minWidth: 'min-w-[192px]' },
-  { id: 'status', title: 'STATUS', type: 'status', width: 'w-36', minWidth: 'min-w-[144px]' },
-  { id: 'priority', title: 'PRIORITY', type: 'priority', width: 'w-36', minWidth: 'min-w-[144px]' },
-  { id: 'startDate', title: 'START DATE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
-  { id: 'deadline', title: 'DEADLINE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
+  { id: 'select', title: 'SELECT', displayTitle: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
+  { id: 'name', title: 'Name', displayTitle: 'NAME', type: 'text', width: 'w-48', minWidth: 'min-w-[192px]' },
+  { id: 'status', title: 'Status', displayTitle: 'STATUS', type: 'status', width: 'w-36', minWidth: 'min-w-[144px]' },
+  { id: 'priority', title: 'Priority', displayTitle: 'PRIORITY', type: 'priority', width: 'w-36', minWidth: 'min-w-[144px]' },
+  { id: 'startDate', title: 'Start Date', displayTitle: 'START DATE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
+  { id: 'deadline', title: 'Deadline', displayTitle: 'DEADLINE', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
 ];
 
 /**
@@ -227,7 +227,8 @@ function tableReducer(state: TableState, action: TableAction): TableState {
       const columnName = `Column ${state.columns.length}`;
       const newColumn: Column = {
         id: `column${uuidv4().substring(0, 8)}`,
-        title: columnName.toUpperCase(),
+        title: columnName,
+        displayTitle: columnName.toUpperCase(),
         type: 'text',
         width: 'w-40',
         minWidth: 'min-w-[160px]'
@@ -244,7 +245,8 @@ function tableReducer(state: TableState, action: TableAction): TableState {
       const columnName = `Column ${state.columns.length}`;
       const newColumn: Column = {
         id: `column${uuidv4().substring(0, 8)}`,
-        title: columnName.toUpperCase(),
+        title: columnName,
+        displayTitle: columnName.toUpperCase(),
         type: 'text',
         width: 'w-40',
         minWidth: 'min-w-[160px]'
@@ -264,7 +266,8 @@ function tableReducer(state: TableState, action: TableAction): TableState {
       const columnName = `Column ${state.columns.length}`;
       const newColumn: Column = {
         id: `column${uuidv4().substring(0, 8)}`,
-        title: columnName.toUpperCase(),
+        title: columnName,
+        displayTitle: columnName.toUpperCase(),
         type: 'text',
         width: 'w-40',
         minWidth: 'min-w-[160px]'
@@ -303,7 +306,7 @@ function tableReducer(state: TableState, action: TableAction): TableState {
         ...state,
         columns: state.columns.map(column => 
           column.id === columnId 
-            ? { ...column, title: title.toUpperCase() }
+            ? { ...column, title: title, displayTitle: title.toUpperCase() }
             : column
         )
       };
@@ -443,7 +446,8 @@ function tableReducer(state: TableState, action: TableAction): TableState {
             const columnName = `Column ${newColumns.length}`;
             const newColumn: Column = {
               id: `column${uuidv4().substring(0, 8)}`,
-              title: columnName.toUpperCase(),
+              title: columnName,
+              displayTitle: columnName.toUpperCase(),
               type: 'text',
               width: 'w-40',
               minWidth: 'min-w-[160px]'

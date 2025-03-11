@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 4.0.9 - Updated Claude models to latest versions (3.5 Haiku and 3.7 Sonnet)
+ * @version 4.1.4 - Improved error handling with detailed messages
  */
 
 import { Fragment, useState } from 'react';
@@ -62,7 +62,23 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
       setPowerFXCode(code);
     } catch (err) {
       console.error('Error generating PowerFX code:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      
+      // Provide a more detailed error message
+      let errorMessage = '';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        
+        // Additional context for specific errors
+        if (err.message.includes('Failed to fetch')) {
+          errorMessage = `Network error when contacting the API service: ${err.message}. Please check your internet connection and try again.`;
+        } else if (err.message.includes('404')) {
+          errorMessage = `The selected model "${getClaudeModelDisplayName(selectedModel)}" is currently unavailable. Please try again with a different model.`;
+        }
+      } else {
+        errorMessage = 'An unknown error occurred while generating the code. Please try again.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

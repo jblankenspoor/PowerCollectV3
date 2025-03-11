@@ -4,7 +4,7 @@
  * Renders the header row of the data table with editable column titles
  * 
  * @module TableHeader
- * @version 1.4.3 - Fixed TypeScript errors for deployment
+ * @version 4.1.3 - Added Tab key navigation between header cells
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -75,7 +75,7 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns }) => {
       const column = columns.find(col => col.id === editingColumnId);
       if (!column) return;
       
-      // Calculate width needed for the new title
+      // Calculate width needed for the new title (use uppercase for sizing)
       const titleUpperCase = newValue.toUpperCase();
       const neededWidth = measureTextWidth(titleUpperCase);
       
@@ -123,12 +123,34 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns }) => {
   /**
    * Handles key press events in the edit input
    * @param e - Keyboard event
+   * @param columnIndex - Index of the current column in the filtered array
    */
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent, columnIndex: number) => {
     if (e.key === 'Enter') {
       handleSave();
     } else if (e.key === 'Escape') {
       setEditingColumnId(null);
+    } else if (e.key === 'Tab') {
+      e.preventDefault(); // Prevent default tab behavior
+      
+      // Save current cell
+      handleSave();
+      
+      // Determine next column index
+      const nextColumnIndex = e.shiftKey 
+        ? columnIndex - 1  // Shift+Tab goes to previous column
+        : columnIndex + 1; // Tab goes to next column
+        
+      // Get filtered columns (excluding select column)
+      const editableColumns = columns.slice(1);
+      
+      // Check if next index is valid
+      if (nextColumnIndex >= 0 && nextColumnIndex < editableColumns.length) {
+        // Get the next column and start editing it
+        const nextColumn = editableColumns[nextColumnIndex];
+        setEditingColumnId(nextColumn.id);
+        setEditValue(nextColumn.title);
+      }
     }
   };
 
@@ -159,14 +181,14 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns }) => {
       </div>
       
       {/* Map through columns to create header cells (skip the first select column as we handle it separately) */}
-      {columns.slice(1).map(column => {
+      {columns.slice(1).map((column, columnIndex) => {
         // Get pixel width from minWidth class
         const pixelWidth = getPixelWidthStringFromClass(column.minWidth);
         
         return (
           <div 
             key={column.id} 
-            className={`${column.width} ${column.minWidth || ''} p-4 flex items-center justify-start font-medium text-gray-500 text-sm whitespace-nowrap flex-shrink-0 ${column.id !== 'select' ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+            className={`${column.width} ${column.minWidth || ''} p-4 flex items-center justify-start font-medium text-gray-500 text-sm whitespace-nowrap flex-shrink-0 ${column.id !== 'select' ? 'cursor-pointer hover:bg-gray-100 group' : ''}`}
             style={{
               width: pixelWidth,
               minWidth: pixelWidth,
@@ -181,14 +203,15 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns }) => {
                 type="text"
                 value={editValue}
                 onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
+                onKeyDown={(e) => handleKeyDown(e, columnIndex)}
                 onBlur={handleBlur}
                 className="w-full px-1 py-0.5 border border-blue-500 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                 aria-label={`Edit ${column.title} column title`}
               />
             ) : (
-              <div className="flex items-center">
-                <span>{column.title}</span>
+              <div className="flex items-center w-full">
+                <span className="font-medium text-gray-500 text-sm">{column.displayTitle || column.title}</span>
+                <span className="ml-1 text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200">✎</span>
               </div>
             )}
           </div>

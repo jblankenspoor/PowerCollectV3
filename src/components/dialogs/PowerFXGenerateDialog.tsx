@@ -5,14 +5,14 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 4.0.0 - Updated terminology to Power Apps Collection
+ * @version 4.0.9 - Updated Claude models to latest versions (3.5 Haiku and 3.7 Sonnet)
  */
 
 import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, DocumentTextIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useTableContext } from '../../context/TableContext';
-import { convertTableToPowerFX } from '../../utils/claudeApiClient';
+import { convertTableToPowerFX, ClaudeModel, getClaudeModelDisplayName } from '../../utils/claudeApiClient';
 
 /**
  * Props for the PowerFXGenerateDialog component
@@ -22,6 +22,16 @@ interface PowerFXGenerateDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+/**
+ * Available Claude models for dropdown
+ * @type {ClaudeModel[]} - Array of available Claude API model identifiers
+ * @see https://docs.anthropic.com/en/docs/about-claude/models/all-models
+ */
+const CLAUDE_MODELS: ClaudeModel[] = [
+  'claude-3-5-haiku-20241022',
+  'claude-3-7-sonnet-20250219'
+];
 
 /**
  * PowerFXGenerateDialog component for generating Power Apps Collection code
@@ -37,6 +47,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+  const [selectedModel, setSelectedModel] = useState<ClaudeModel>('claude-3-5-haiku-20241022');
 
   /**
    * Generate Power Apps Collection code from the current table data
@@ -46,8 +57,8 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
     setError(null);
     
     try {
-      // Convert table data to PowerFX using Claude API
-      const code = await convertTableToPowerFX(tasks, columns);
+      // Convert table data to PowerFX using Claude API with selected model
+      const code = await convertTableToPowerFX(tasks, columns, selectedModel);
       setPowerFXCode(code);
     } catch (err) {
       console.error('Error generating PowerFX code:', err);
@@ -74,6 +85,13 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
     setPowerFXCode('');
     setError(null);
     onClose();
+  };
+
+  /**
+   * Handle model selection change
+   */
+  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedModel(e.target.value as ClaudeModel);
   };
 
   return (
@@ -132,13 +150,33 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
 
                 <div className="mt-5 sm:mt-4">
                   {!powerFXCode && !isLoading && !error && (
-                    <button
-                      type="button"
-                      className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:w-auto"
-                      onClick={generateCollectionCode}
-                    >
-                      Generate Collection
-                    </button>
+                    <div>
+                      <div className="mb-4">
+                        <label htmlFor="claude-model" className="block text-sm font-medium text-gray-700 mb-1">
+                          Claude Model
+                        </label>
+                        <select
+                          id="claude-model"
+                          name="claude-model"
+                          className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                          value={selectedModel}
+                          onChange={handleModelChange}
+                        >
+                          {CLAUDE_MODELS.map((model) => (
+                            <option key={model} value={model}>
+                              {getClaudeModelDisplayName(model)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:w-auto"
+                        onClick={generateCollectionCode}
+                      >
+                        Generate Collection
+                      </button>
+                    </div>
                   )}
 
                   {isLoading && (
@@ -195,21 +233,43 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                       <div className="bg-gray-50 p-4 rounded-md overflow-auto max-h-96">
                         <pre className="text-xs text-gray-800 whitespace-pre-wrap">{powerFXCode}</pre>
                       </div>
-                      <div className="mt-4 flex justify-end space-x-3">
-                        <button
-                          type="button"
-                          className="inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                          onClick={handleClose}
-                        >
-                          Close
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                          onClick={generateCollectionCode}
-                        >
-                          Regenerate
-                        </button>
+                      
+                      <div className="mt-4">
+                        <div className="mb-4">
+                          <label htmlFor="regenerate-claude-model" className="block text-sm font-medium text-gray-700 mb-1">
+                            Claude Model for Regeneration
+                          </label>
+                          <select
+                            id="regenerate-claude-model"
+                            name="regenerate-claude-model"
+                            className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                            value={selectedModel}
+                            onChange={handleModelChange}
+                          >
+                            {CLAUDE_MODELS.map((model) => (
+                              <option key={model} value={model}>
+                                {getClaudeModelDisplayName(model)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      
+                        <div className="flex justify-end space-x-3">
+                          <button
+                            type="button"
+                            className="inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                            onClick={handleClose}
+                          >
+                            Close
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                            onClick={generateCollectionCode}
+                          >
+                            Regenerate
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}

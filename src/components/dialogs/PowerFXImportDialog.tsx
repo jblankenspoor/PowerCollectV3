@@ -5,14 +5,14 @@
  * Uses the Claude API client to convert Power Apps Collection format to table data
  * 
  * @module PowerFXImportDialog
- * @version 4.0.0 - Updated terminology to Power Apps Collection
+ * @version 4.0.9 - Updated Claude models to latest versions (3.5 Haiku and 3.7 Sonnet)
  */
 
 import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { useTableContext } from '../../context/TableContext';
-import { convertPowerFXToTable } from '../../utils/claudeApiClient';
+import { convertPowerFXToTable, ClaudeModel, getClaudeModelDisplayName } from '../../utils/claudeApiClient';
 
 /**
  * Props for the PowerFXImportDialog component
@@ -22,6 +22,16 @@ interface PowerFXImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+/**
+ * Available Claude models for dropdown
+ * @type {ClaudeModel[]} - Array of available Claude API model identifiers
+ * @see https://docs.anthropic.com/en/docs/about-claude/models/all-models
+ */
+const CLAUDE_MODELS: ClaudeModel[] = [
+  'claude-3-5-haiku-20241022',
+  'claude-3-7-sonnet-20250219'
+];
 
 /**
  * PowerFXImportDialog component for importing Power Apps Collection code
@@ -36,6 +46,7 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
   const [powerFXCode, setPowerFXCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<ClaudeModel>('claude-3-5-haiku-20241022');
 
   /**
    * Handle Power Apps Collection code input change
@@ -43,6 +54,13 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
    */
   const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setPowerFXCode(e.target.value);
+  };
+
+  /**
+   * Handle model selection change
+   */
+  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedModel(e.target.value as ClaudeModel);
   };
 
   /**
@@ -58,8 +76,8 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
     setError(null);
     
     try {
-      // Convert Power Apps Collection code to table data using Claude API
-      const { columns, tasks } = await convertPowerFXToTable(powerFXCode);
+      // Convert Power Apps Collection code to table data using Claude API with selected model
+      const { columns, tasks } = await convertPowerFXToTable(powerFXCode, selectedModel);
       
       // Clear existing table and set new data
       dispatch({ type: 'IMPORT_DATA', payload: { tasks, columns } });
@@ -153,6 +171,25 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                         onChange={handleCodeChange}
                       />
                     </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label htmlFor="claude-model" className="block text-sm font-medium text-gray-700 mb-1">
+                      Claude Model
+                    </label>
+                    <select
+                      id="claude-model"
+                      name="claude-model"
+                      className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                      value={selectedModel}
+                      onChange={handleModelChange}
+                    >
+                      {CLAUDE_MODELS.map((model) => (
+                        <option key={model} value={model}>
+                          {getClaudeModelDisplayName(model)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {error && (

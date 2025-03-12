@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert Power Apps Collection format to table data
  * 
  * @module PowerFXImportDialog
- * @version 5.1.9 - Updated pricing model for input and output tokens
+ * @version 5.1.10 - Updated Claude 3.5 Haiku output token pricing from $2.40 to $4.00 per million tokens
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -42,7 +42,7 @@ const CLAUDE_MODELS: ClaudeModel[] = [
 const MODEL_PRICING = {
   'claude-3-5-haiku-20241022': {
     input: 0.80,   // $0.80 per 1M input tokens
-    output: 2.40   // $2.40 per 1M output tokens
+    output: 4.00   // $4.00 per 1M output tokens
   },
   'claude-3-7-sonnet-20250219': {
     input: 3.00,   // $3.00 per 1M input tokens

@@ -8,6 +8,7 @@
  * @version 4.2.1 - Added token usage information to API response
  * @version 4.2.2 - Updated PowerFX import to include token usage in response
  * @version 5.1.9 - Updated pricing model for input and output tokens
+ * @version 5.1.10 - Updated Claude 3.5 Haiku output token pricing from $2.40 to $4.00 per million tokens
  */
 
 import { Column, Task } from '../types/dataTypes';

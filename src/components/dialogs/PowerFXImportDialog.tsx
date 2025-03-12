@@ -5,14 +5,14 @@
  * Uses the Claude API client to convert Power Apps Collection format to table data
  * 
  * @module PowerFXImportDialog
- * @version 5.1.5 - Added output token estimation and improved total token calculation
+ * @version 5.1.9 - Updated pricing model for input and output tokens
  */
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { useTableContext } from '../../context/TableContext';
-import { convertPowerFXToTable, ClaudeModel, getClaudeModelDisplayName } from '../../utils/claudeApiClient';
+import { convertPowerFXToTable, ClaudeModel, getClaudeModelDisplayName, ClaudeTokenUsage } from '../../utils/claudeApiClient';
 import TokenCountDisplay from '../common/TokenCountDisplay';
 import { countImportTokens, TokenCount } from '../../utils/tokenCounter';
 
@@ -36,6 +36,21 @@ const CLAUDE_MODELS: ClaudeModel[] = [
 ];
 
 /**
+ * Pricing per 1M tokens in USD
+ * @see https://www.anthropic.com/pricing#anthropic-api
+ */
+const MODEL_PRICING = {
+  'claude-3-5-haiku-20241022': {
+    input: 0.80,   // $0.80 per 1M input tokens
+    output: 2.40   // $2.40 per 1M output tokens
+  },
+  'claude-3-7-sonnet-20250219': {
+    input: 3.00,   // $3.00 per 1M input tokens
+    output: 15.00  // $15.00 per 1M output tokens
+  }
+};
+
+/**
  * PowerFXImportDialog component for importing Power Apps Collection code
  * @param props - Component props
  * @returns JSX Element
@@ -53,6 +68,12 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
   // State for token counting
   const [tokenCount, setTokenCount] = useState<TokenCount | null>(null);
   const [isCountingTokens, setIsCountingTokens] = useState<boolean>(false);
+  
+  // State for actual token usage from Claude API
+  const [actualTokenUsage, setActualTokenUsage] = useState<ClaudeTokenUsage | null>(null);
+  
+  // Store the model used for import
+  const [importModel, setImportModel] = useState<ClaudeModel | null>(null);
 
   /**
    * Update token count when PowerFX code or model changes
@@ -101,6 +122,46 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
   };
 
   /**
+   * Format percentage difference between estimated and actual token usage
+   * @param estimated - Estimated token count
+   * @param actual - Actual token count
+   * @returns Formatted percentage difference
+   */
+  const formatDifference = (estimated: number, actual: number): string => {
+    if (estimated === 0 || actual === 0) return 'N/A';
+    
+    const difference = ((actual - estimated) / estimated) * 100;
+    const sign = difference >= 0 ? '+' : '';
+    return `${sign}${difference.toFixed(1)}%`;
+  };
+
+  /**
+   * Formats a currency value as USD
+   * @param value - The value to format
+   * @returns Formatted currency string
+   */
+  const formatCurrency = (value: number): string => {
+    if (value < 0.01) {
+      return '$' + value.toFixed(5);
+    }
+    return '$' + value.toFixed(3);
+  };
+
+  /**
+   * Calculate cost for token usage based on the model
+   * @param inputTokens - Number of input tokens
+   * @param outputTokens - Number of output tokens
+   * @param model - Claude model used
+   * @returns Cost in USD
+   */
+  const calculateCost = (inputTokens: number, outputTokens: number, model: ClaudeModel): number => {
+    const pricing = MODEL_PRICING[model];
+    const inputCost = (inputTokens / 1_000_000) * pricing.input;
+    const outputCost = (outputTokens / 1_000_000) * pricing.output;
+    return inputCost + outputCost;
+  };
+
+  /**
    * Import Power Apps Collection code and convert to table data
    */
   const importCollectionCode = async () => {
@@ -113,11 +174,17 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
     setError(null);
     
     try {
+      // Store the model used for import
+      setImportModel(selectedModel);
+      
       // Convert Power Apps Collection code to table data using Claude API with selected model
-      const { columns, tasks } = await convertPowerFXToTable(powerFXCode, selectedModel);
+      const result = await convertPowerFXToTable(powerFXCode, selectedModel);
+      
+      // Store actual token usage
+      setActualTokenUsage(result.tokenUsage);
       
       // Clear existing table and set new data
-      dispatch({ type: 'IMPORT_DATA', payload: { tasks, columns } });
+      dispatch({ type: 'IMPORT_DATA', payload: { tasks: result.tasks, columns: result.columns } });
       
       // Close dialog after successful import
       handleClose();
@@ -135,6 +202,7 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
   const handleClose = () => {
     setPowerFXCode('');
     setError(null);
+    setImportModel(null);
     onClose();
   };
 
@@ -216,6 +284,66 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                       />
                     </div>
                   </div>
+
+                  {/* Token usage comparison if actual usage is available */}
+                  {actualTokenUsage && tokenCount && importModel && (
+                    <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <h5 className="text-sm font-medium text-gray-900 mb-2">
+                        Token Usage ({getClaudeModelDisplayName(importModel)})
+                      </h5>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="font-medium">Metric</div>
+                        <div className="font-medium">Estimated</div>
+                        <div className="font-medium">Actual</div>
+                        
+                        <div>Input Tokens</div>
+                        <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
+                        <div className="flex items-center">
+                          {actualTokenUsage.input_tokens.toLocaleString()}
+                          <span className={`ml-2 text-xs ${actualTokenUsage.input_tokens > (tokenCount.adjustedInputTokens + tokenCount.instructionTokens) ? 'text-red-500' : 'text-green-500'}`}>
+                            ({formatDifference((tokenCount.adjustedInputTokens + tokenCount.instructionTokens), actualTokenUsage.input_tokens)})
+                          </span>
+                        </div>
+                        
+                        <div>Output Tokens</div>
+                        <div>{tokenCount.estimatedOutputTokens.toLocaleString()}</div>
+                        <div className="flex items-center">
+                          {actualTokenUsage.output_tokens.toLocaleString()}
+                          <span className={`ml-2 text-xs ${actualTokenUsage.output_tokens > tokenCount.estimatedOutputTokens ? 'text-red-500' : 'text-green-500'}`}>
+                            ({formatDifference(tokenCount.estimatedOutputTokens, actualTokenUsage.output_tokens)})
+                          </span>
+                        </div>
+                        
+                        <div>Total Tokens</div>
+                        <div>{tokenCount.adjustedTotalTokens.toLocaleString()}</div>
+                        <div className="flex items-center">
+                          {actualTokenUsage.total_tokens.toLocaleString()}
+                          <span className={`ml-2 text-xs ${actualTokenUsage.total_tokens > tokenCount.adjustedTotalTokens ? 'text-red-500' : 'text-green-500'}`}>
+                            ({formatDifference(tokenCount.adjustedTotalTokens, actualTokenUsage.total_tokens)})
+                          </span>
+                        </div>
+                        
+                        <div className="font-medium">Cost</div>
+                        <div className="font-medium">
+                          {formatCurrency(calculateCost(
+                            tokenCount.adjustedInputTokens + tokenCount.instructionTokens,
+                            tokenCount.estimatedOutputTokens,
+                            importModel
+                          ))}
+                        </div>
+                        <div className="font-medium">
+                          {formatCurrency(calculateCost(
+                            actualTokenUsage.input_tokens,
+                            actualTokenUsage.output_tokens,
+                            importModel
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        <p>Pricing: Input ${MODEL_PRICING[importModel].input.toFixed(2)}/1M tokens · Output ${MODEL_PRICING[importModel].output.toFixed(2)}/1M tokens</p>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mb-4">
                     <label htmlFor="claude-model" className="block text-sm font-medium text-gray-700 mb-1">

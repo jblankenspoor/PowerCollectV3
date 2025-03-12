@@ -4,7 +4,7 @@
  * Displays token counts for Claude API calls with a detailed breakdown
  * 
  * @module TokenCountDisplay
- * @version 5.1.5 - Added output token estimation and improved total token calculation
+ * @version 5.1.9 - Updated pricing model for input and output tokens
  */
 
 import React from 'react';
@@ -23,6 +23,21 @@ interface TokenCountDisplayProps {
   /** Optional CSS class name */
   className?: string;
 }
+
+/**
+ * Pricing per 1M tokens in USD
+ * @see https://www.anthropic.com/pricing#anthropic-api
+ */
+const MODEL_PRICING = {
+  'claude-3-5-haiku-20241022': {
+    input: 0.80,   // $0.80 per 1M input tokens
+    output: 2.40   // $2.40 per 1M output tokens
+  },
+  'claude-3-7-sonnet-20250219': {
+    input: 3.00,   // $3.00 per 1M input tokens
+    output: 15.00  // $15.00 per 1M output tokens
+  }
+};
 
 /**
  * Formats a currency value as USD
@@ -54,6 +69,31 @@ const formatModelName = (modelName?: string): string => {
 };
 
 /**
+ * Calculate cost for token usage based on the model
+ * @param inputTokens - Number of input tokens
+ * @param outputTokens - Number of output tokens
+ * @param model - Claude model name
+ * @returns Cost in USD
+ */
+const calculateCost = (inputTokens: number, outputTokens: number, model?: string): number => {
+  if (!model) return 0;
+  
+  let pricing;
+  if (model.includes('3-5-haiku')) {
+    pricing = MODEL_PRICING['claude-3-5-haiku-20241022'];
+  } else if (model.includes('3-7-sonnet')) {
+    pricing = MODEL_PRICING['claude-3-7-sonnet-20250219'];
+  } else {
+    // Default to Haiku pricing if model is unknown
+    pricing = MODEL_PRICING['claude-3-5-haiku-20241022'];
+  }
+  
+  const inputCost = (inputTokens / 1_000_000) * pricing.input;
+  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+  return inputCost + outputCost;
+};
+
+/**
  * Token Count Display Component
  * 
  * @param props - Component props
@@ -74,6 +114,16 @@ const TokenCountDisplay: React.FC<TokenCountDisplayProps> = ({
   const baseClass = "text-xs text-gray-600 rounded bg-gray-100 px-2 py-1 flex items-center";
   const combinedClassName = `${baseClass} ${className}`;
   
+  // Calculate total input tokens (including system tokens)
+  const totalInputTokens = tokenCount ? tokenCount.adjustedInputTokens + tokenCount.instructionTokens : 0;
+  
+  // Calculate cost using the updated pricing model
+  const cost = tokenCount ? calculateCost(
+    totalInputTokens,
+    tokenCount.estimatedOutputTokens,
+    tokenCount.modelName
+  ) : 0;
+  
   return (
     <div className={combinedClassName}>
       {isLoading ? (
@@ -91,11 +141,9 @@ const TokenCountDisplay: React.FC<TokenCountDisplayProps> = ({
               <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" />
             </svg>
             <span className="font-medium">{tokenCount?.adjustedTotalTokens.toLocaleString()} tokens</span>
-            {tokenCount?.cost !== undefined && (
-              <span className="font-medium text-indigo-600 ml-2">
-                {formatCurrency(tokenCount.cost)}
-              </span>
-            )}
+            <span className="font-medium text-indigo-600 ml-2">
+              {formatCurrency(cost)}
+            </span>
             {tokenCount?.modelName && (
               <span className="ml-2 text-[10px] text-gray-500">
                 {formatModelName(tokenCount.modelName)}
@@ -106,10 +154,10 @@ const TokenCountDisplay: React.FC<TokenCountDisplayProps> = ({
           {showDetails && (
             <div className="mt-1 text-[10px] text-gray-500">
               <div>
-                <span>Estimate: {tokenCount?.totalTokens.toLocaleString()} (before adjustments)</span>
+                Input: {totalInputTokens.toLocaleString()} · Output: {tokenCount?.estimatedOutputTokens.toLocaleString()}
               </div>
               <div>
-                Input: {tokenCount?.adjustedInputTokens.toLocaleString()} · Output: ~{tokenCount?.estimatedOutputTokens.toLocaleString()} · System: {tokenCount?.instructionTokens.toLocaleString()}
+                Total: {tokenCount?.adjustedTotalTokens.toLocaleString()} ({formatCurrency(cost)})
               </div>
             </div>
           )}

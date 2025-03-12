@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 5.1.5 - Added output token estimation and improved total token calculation
+ * @version 5.1.9 - Updated pricing model for input and output tokens
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -36,6 +36,21 @@ const CLAUDE_MODELS: ClaudeModel[] = [
 ];
 
 /**
+ * Pricing per 1M tokens in USD
+ * @see https://www.anthropic.com/pricing#anthropic-api
+ */
+const MODEL_PRICING = {
+  'claude-3-5-haiku-20241022': {
+    input: 0.80,   // $0.80 per 1M input tokens
+    output: 2.40   // $2.40 per 1M output tokens
+  },
+  'claude-3-7-sonnet-20250219': {
+    input: 3.00,   // $3.00 per 1M input tokens
+    output: 15.00  // $15.00 per 1M output tokens
+  }
+};
+
+/**
  * PowerFXGenerateDialog component for generating Power Apps Collection code
  * @param props - Component props
  * @returns JSX Element
@@ -57,6 +72,9 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
   
   // State for actual token usage from Claude API
   const [actualTokenUsage, setActualTokenUsage] = useState<ClaudeTokenUsage | null>(null);
+  
+  // Store the model used for generation
+  const [generationModel, setGenerationModel] = useState<ClaudeModel | null>(null);
 
   /**
    * Update token count when dialog is opened, table data, or model changes
@@ -92,6 +110,9 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
     setError(null);
     
     try {
+      // Store the model used for generation
+      setGenerationModel(selectedModel);
+      
       // Convert table data to PowerFX using Claude API with selected model
       const result = await convertTableToPowerFX(tasks, columns, selectedModel);
       setPowerFXCode(result.code);
@@ -136,6 +157,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
   const handleClose = () => {
     setPowerFXCode('');
     setError(null);
+    setGenerationModel(null);
     onClose();
   };
 
@@ -160,6 +182,35 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
     const sign = difference >= 0 ? '+' : '';
     return `${sign}${difference.toFixed(1)}%`;
   };
+
+  /**
+   * Formats a currency value as USD
+   * @param value - The value to format
+   * @returns Formatted currency string
+   */
+  const formatCurrency = (value: number): string => {
+    if (value < 0.01) {
+      return '$' + value.toFixed(5);
+    }
+    return '$' + value.toFixed(3);
+  };
+
+  /**
+   * Calculate cost for token usage based on the model
+   * @param inputTokens - Number of input tokens
+   * @param outputTokens - Number of output tokens
+   * @param model - Claude model used
+   * @returns Cost in USD
+   */
+  const calculateCost = (inputTokens: number, outputTokens: number, model: ClaudeModel): number => {
+    const pricing = MODEL_PRICING[model];
+    const inputCost = (inputTokens / 1_000_000) * pricing.input;
+    const outputCost = (outputTokens / 1_000_000) * pricing.output;
+    return inputCost + outputCost;
+  };
+
+  // Use the model that was used for generation for the token usage display
+  const displayModel = generationModel || selectedModel;
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -305,21 +356,23 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                         </button>
                       </div>
                       
-                      {/* Token usage comparison */}
-                      {actualTokenUsage && tokenCount && (
+                      {/* Updated Token usage comparison */}
+                      {actualTokenUsage && tokenCount && generationModel && (
                         <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
-                          <h5 className="text-sm font-medium text-gray-900 mb-2">Token Usage</h5>
+                          <h5 className="text-sm font-medium text-gray-900 mb-2">
+                            Token Usage ({getClaudeModelDisplayName(generationModel)})
+                          </h5>
                           <div className="grid grid-cols-3 gap-2 text-xs">
                             <div className="font-medium">Metric</div>
                             <div className="font-medium">Estimated</div>
                             <div className="font-medium">Actual</div>
                             
                             <div>Input Tokens</div>
-                            <div>{tokenCount.adjustedInputTokens.toLocaleString()}</div>
+                            <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
                             <div className="flex items-center">
                               {actualTokenUsage.input_tokens.toLocaleString()}
-                              <span className={`ml-2 text-xs ${actualTokenUsage.input_tokens > tokenCount.adjustedInputTokens ? 'text-red-500' : 'text-green-500'}`}>
-                                ({formatDifference(tokenCount.adjustedInputTokens, actualTokenUsage.input_tokens)})
+                              <span className={`ml-2 text-xs ${actualTokenUsage.input_tokens > (tokenCount.adjustedInputTokens + tokenCount.instructionTokens) ? 'text-red-500' : 'text-green-500'}`}>
+                                ({formatDifference((tokenCount.adjustedInputTokens + tokenCount.instructionTokens), actualTokenUsage.input_tokens)})
                               </span>
                             </div>
                             
@@ -340,18 +393,34 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                                 ({formatDifference(tokenCount.adjustedTotalTokens, actualTokenUsage.total_tokens)})
                               </span>
                             </div>
+                            
+                            <div className="font-medium">Cost</div>
+                            <div className="font-medium">
+                              {formatCurrency(calculateCost(
+                                tokenCount.adjustedInputTokens + tokenCount.instructionTokens,
+                                tokenCount.estimatedOutputTokens,
+                                generationModel
+                              ))}
+                            </div>
+                            <div className="font-medium">
+                              {formatCurrency(calculateCost(
+                                actualTokenUsage.input_tokens,
+                                actualTokenUsage.output_tokens,
+                                generationModel
+                              ))}
+                            </div>
                           </div>
                           <div className="mt-2 text-xs text-gray-500">
-                            <p>Base estimate: {tokenCount.totalTokens.toLocaleString()} (before adjustments)</p>
+                            <p>Pricing: Input ${MODEL_PRICING[generationModel].input.toFixed(2)}/1M tokens · Output ${MODEL_PRICING[generationModel].output.toFixed(2)}/1M tokens</p>
                           </div>
                         </div>
                       )}
                       
-                      <div className="bg-gray-50 p-4 rounded-md overflow-auto max-h-96">
+                      <div className="bg-gray-50 p-4 rounded-md overflow-auto max-h-72">
                         <pre className="text-xs text-gray-800 whitespace-pre-wrap">{powerFXCode}</pre>
                       </div>
                       
-                      <div className="mt-4">
+                      <div className="mt-4 mb-2">
                         <div className="flex justify-between items-center mb-1">
                           <label htmlFor="regenerate-claude-model" className="block text-sm font-medium text-gray-700">
                             Claude Model for Regeneration
@@ -365,7 +434,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                         <select
                           id="regenerate-claude-model"
                           name="regenerate-claude-model"
-                          className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                          className="mt-1 mb-3 block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
                           value={selectedModel}
                           onChange={handleModelChange}
                         >
@@ -377,7 +446,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                         </select>
                       </div>
                       
-                      <div className="mt-4 flex gap-2">
+                      <div className="flex gap-2">
                         <button
                           type="button"
                           className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:w-auto"

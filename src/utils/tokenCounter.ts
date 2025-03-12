@@ -4,7 +4,7 @@
  * Provides functions to count tokens for text and data to estimate Claude API token usage
  * 
  * @module tokenCounter
- * @version 5.1.4 - Added display of actual token usage from Claude API
+ * @version 5.1.5 - Added output token estimation and improved total token calculation
  */
 
 import { AutoTokenizer } from '@xenova/transformers';
@@ -16,8 +16,10 @@ import { Column, Task } from '../types/dataTypes';
 export interface TokenCount {
   inputTokens: number;
   instructionTokens: number;
-  totalTokens: number;
-  adjustedTotalTokens: number; // Added adjusted token count
+  adjustedInputTokens: number; // Input tokens after adjustment
+  estimatedOutputTokens: number; // Estimated output tokens
+  totalTokens: number; // Raw total before adjustments
+  adjustedTotalTokens: number; // Total after all adjustments
   cost?: number; // Added cost estimation
   modelName?: string; // Model name for reference
 }
@@ -238,11 +240,17 @@ export async function countGenerateTokens(
     const adjustmentFactor = getInputAdjustmentFactor(tasks.length);
     const adjustedInputTokens = Math.ceil(rawInputTokens * adjustmentFactor);
     
-    // Calculate total with adjusted input tokens + unchanged instruction tokens
-    const adjustedTotalTokens = adjustedInputTokens + instructionTokens;
+    // Calculate total input tokens (including system prompt)
+    const totalInputTokens = adjustedInputTokens + instructionTokens;
+    
+    // Estimate output tokens as 50% of total input tokens
+    const estimatedOutputTokens = Math.ceil(totalInputTokens * 0.5);
     
     // For reference, store the unadjusted total
     const totalTokens = rawInputTokens + instructionTokens;
+    
+    // Calculate adjusted total with all components
+    const adjustedTotalTokens = totalInputTokens + estimatedOutputTokens;
     
     // Calculate cost based on the adjusted total
     const cost = calculateCost(adjustedTotalTokens, model);
@@ -250,6 +258,8 @@ export async function countGenerateTokens(
     return {
       inputTokens: rawInputTokens,
       instructionTokens,
+      adjustedInputTokens,
+      estimatedOutputTokens,
       totalTokens,
       adjustedTotalTokens,
       cost,
@@ -260,6 +270,8 @@ export async function countGenerateTokens(
     return {
       inputTokens: 0,
       instructionTokens: 0,
+      adjustedInputTokens: 0,
+      estimatedOutputTokens: 0,
       totalTokens: 0,
       adjustedTotalTokens: 0,
       cost: 0,
@@ -296,11 +308,17 @@ export async function countImportTokens(
     const adjustmentFactor = getInputAdjustmentFactor(estimatedRows);
     const adjustedInputTokens = Math.ceil(rawInputTokens * adjustmentFactor);
     
-    // Calculate total with adjusted input tokens + unchanged instruction tokens
-    const adjustedTotalTokens = adjustedInputTokens + instructionTokens;
+    // Calculate total input tokens (including system prompt)
+    const totalInputTokens = adjustedInputTokens + instructionTokens;
+    
+    // Estimate output tokens as 50% of total input tokens
+    const estimatedOutputTokens = Math.ceil(totalInputTokens * 0.5);
     
     // For reference, store the unadjusted total
     const totalTokens = rawInputTokens + instructionTokens;
+    
+    // Calculate adjusted total with all components
+    const adjustedTotalTokens = totalInputTokens + estimatedOutputTokens;
     
     // Calculate cost based on the adjusted total
     const cost = calculateCost(adjustedTotalTokens, model);
@@ -308,6 +326,8 @@ export async function countImportTokens(
     return {
       inputTokens: rawInputTokens,
       instructionTokens,
+      adjustedInputTokens,
+      estimatedOutputTokens,
       totalTokens,
       adjustedTotalTokens,
       cost,
@@ -318,6 +338,8 @@ export async function countImportTokens(
     return {
       inputTokens: 0,
       instructionTokens: 0,
+      adjustedInputTokens: 0,
+      estimatedOutputTokens: 0,
       totalTokens: 0,
       adjustedTotalTokens: 0,
       cost: 0,

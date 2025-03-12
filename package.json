@@ -1,6 +1,6 @@
 {
   "name": "powercollectv3",
-  "version": "5.1.4",
+  "version": "5.1.5",
   "main": "index.js",
   "scripts": {
     "dev": "vite",

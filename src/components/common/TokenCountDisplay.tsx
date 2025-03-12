@@ -4,7 +4,7 @@
  * Displays token counts for Claude API calls with a detailed breakdown
  * 
  * @module TokenCountDisplay
- * @version 5.1.4 - Added display of actual token usage from Claude API
+ * @version 5.1.5 - Added output token estimation and improved total token calculation
  */
 
 import React from 'react';
@@ -106,10 +106,10 @@ const TokenCountDisplay: React.FC<TokenCountDisplayProps> = ({
           {showDetails && (
             <div className="mt-1 text-[10px] text-gray-500">
               <div>
-                <span>Estimate: {tokenCount?.totalTokens.toLocaleString()} (before dynamic adjustment)</span>
+                <span>Estimate: {tokenCount?.totalTokens.toLocaleString()} (before adjustments)</span>
               </div>
               <div>
-                Input: {tokenCount?.inputTokens.toLocaleString()} · System: {tokenCount?.instructionTokens.toLocaleString()}
+                Input: {tokenCount?.adjustedInputTokens.toLocaleString()} · Output: ~{tokenCount?.estimatedOutputTokens.toLocaleString()} · System: {tokenCount?.instructionTokens.toLocaleString()}
               </div>
             </div>
           )}

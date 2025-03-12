@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 5.1.4 - Added display of actual token usage from Claude API
+ * @version 5.1.5 - Added output token estimation and improved total token calculation
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -315,17 +315,22 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                             <div className="font-medium">Actual</div>
                             
                             <div>Input Tokens</div>
-                            <div>{tokenCount.inputTokens.toLocaleString()}</div>
+                            <div>{tokenCount.adjustedInputTokens.toLocaleString()}</div>
                             <div className="flex items-center">
                               {actualTokenUsage.input_tokens.toLocaleString()}
-                              <span className={`ml-2 text-xs ${actualTokenUsage.input_tokens > tokenCount.inputTokens ? 'text-red-500' : 'text-green-500'}`}>
-                                ({formatDifference(tokenCount.inputTokens, actualTokenUsage.input_tokens)})
+                              <span className={`ml-2 text-xs ${actualTokenUsage.input_tokens > tokenCount.adjustedInputTokens ? 'text-red-500' : 'text-green-500'}`}>
+                                ({formatDifference(tokenCount.adjustedInputTokens, actualTokenUsage.input_tokens)})
                               </span>
                             </div>
                             
                             <div>Output Tokens</div>
-                            <div>N/A</div>
-                            <div>{actualTokenUsage.output_tokens.toLocaleString()}</div>
+                            <div>{tokenCount.estimatedOutputTokens.toLocaleString()}</div>
+                            <div className="flex items-center">
+                              {actualTokenUsage.output_tokens.toLocaleString()}
+                              <span className={`ml-2 text-xs ${actualTokenUsage.output_tokens > tokenCount.estimatedOutputTokens ? 'text-red-500' : 'text-green-500'}`}>
+                                ({formatDifference(tokenCount.estimatedOutputTokens, actualTokenUsage.output_tokens)})
+                              </span>
+                            </div>
                             
                             <div>Total Tokens</div>
                             <div>{tokenCount.adjustedTotalTokens.toLocaleString()}</div>
@@ -337,7 +342,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                             </div>
                           </div>
                           <div className="mt-2 text-xs text-gray-500">
-                            <p>Estimate: {tokenCount.totalTokens.toLocaleString()} (before dynamic adjustment)</p>
+                            <p>Base estimate: {tokenCount.totalTokens.toLocaleString()} (before adjustments)</p>
                           </div>
                         </div>
                       )}

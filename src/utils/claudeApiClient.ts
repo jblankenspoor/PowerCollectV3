@@ -6,6 +6,8 @@
  * @module claudeApiClient
  * @version 4.1.5 - Fixed column title formatting for "Start Date" in Power FX generation
  * @version 4.2.1 - Added token usage information to API response
+ * @version 4.2.2 - Updated PowerFX import to include token usage in response
+ * @version 5.1.9 - Updated pricing model for input and output tokens
  */
 
 import { Column, Task } from '../types/dataTypes';
@@ -71,6 +73,15 @@ export interface ClaudeTokenUsage {
  */
 export interface PowerFXGenerationResult {
   code: string;
+  tokenUsage: ClaudeTokenUsage | null;
+}
+
+/**
+ * Interface for PowerFX import result
+ */
+export interface PowerFXImportResult {
+  columns: Column[];
+  tasks: Task[];
   tokenUsage: ClaudeTokenUsage | null;
 }
 
@@ -324,7 +335,7 @@ Follow these specific guidelines:
 export const convertPowerFXToTable = async (
   powerFXCode: string,
   model: ClaudeModel = 'claude-3-5-haiku-20241022'
-): Promise<{ columns: Column[], tasks: Task[] }> => {
+): Promise<PowerFXImportResult> => {
   try {
     // For development and testing, we can use a fallback method if Supabase API key is not configured
     if (!isSupabaseApiKeyConfigured()) {
@@ -346,7 +357,8 @@ export const convertPowerFXToTable = async (
             col1: 'Sample', 
             col2: 'Data' 
           }
-        ]
+        ],
+        tokenUsage: null
       };
     }
 
@@ -413,6 +425,13 @@ Follow these guidelines:
     const data = await response.json();
     console.log('Response from Claude API:', data);
     
+    // Extract token usage information if available
+    const tokenUsage: ClaudeTokenUsage | null = data.usage ? {
+      input_tokens: data.usage.input_tokens,
+      output_tokens: data.usage.output_tokens,
+      total_tokens: data.usage.total_tokens
+    } : null;
+    
     // Extract the JSON data from the response
     if (data.content && data.content.length > 0) {
       try {
@@ -442,7 +461,11 @@ Follow these guidelines:
           });
         }
         
-        return jsonData;
+        // Add token usage to the return value
+        return {
+          ...jsonData,
+          tokenUsage
+        };
       } catch (parseError) {
         console.error('Error parsing JSON from Claude API response:', parseError);
         throw new Error('Invalid JSON returned from Claude API');

@@ -4,7 +4,7 @@
  * Provides functions to count tokens for text and data to estimate Claude API token usage
  * 
  * @module tokenCounter
- * @version 5.1.5 - Added output token estimation and improved total token calculation
+ * @version 5.1.9 - Updated pricing model for input and output tokens
  */
 
 import { AutoTokenizer } from '@xenova/transformers';
@@ -25,11 +25,18 @@ export interface TokenCount {
 }
 
 /**
- * Pricing per 1M input tokens in USD
+ * Pricing per 1M tokens in USD
+ * @see https://www.anthropic.com/pricing#anthropic-api
  */
 const MODEL_PRICING = {
-  'claude-3-5-haiku-20241022': 0.80, // $0.80 per 1M input tokens
-  'claude-3-7-sonnet-20250219': 3.00, // $3.00 per 1M input tokens
+  'claude-3-5-haiku-20241022': {
+    input: 0.80,   // $0.80 per 1M input tokens
+    output: 2.40   // $2.40 per 1M output tokens
+  },
+  'claude-3-7-sonnet-20250219': {
+    input: 3.00,   // $3.00 per 1M input tokens
+    output: 15.00  // $15.00 per 1M output tokens
+  }
 };
 
 /**
@@ -157,13 +164,16 @@ function getInputAdjustmentFactor(rowCount: number): number {
 
 /**
  * Calculate cost in USD for token usage
- * @param tokenCount - Number of tokens
+ * @param inputTokens - Number of input tokens
+ * @param outputTokens - Number of output tokens
  * @param model - Claude model used
  * @returns Cost in USD
  */
-function calculateCost(tokenCount: number, model: string): number {
-  const pricePerMillion = MODEL_PRICING[model as keyof typeof MODEL_PRICING] || 3.0; // Default to 3.7 Sonnet price
-  return (tokenCount / 1_000_000) * pricePerMillion;
+function calculateCost(inputTokens: number, outputTokens: number, model: string): number {
+  const pricing = MODEL_PRICING[model as keyof typeof MODEL_PRICING] || MODEL_PRICING['claude-3-5-haiku-20241022']; // Default to Haiku pricing
+  const inputCost = (inputTokens / 1_000_000) * pricing.input;
+  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+  return inputCost + outputCost;
 }
 
 /**
@@ -253,7 +263,7 @@ export async function countGenerateTokens(
     const adjustedTotalTokens = totalInputTokens + estimatedOutputTokens;
     
     // Calculate cost based on the adjusted total
-    const cost = calculateCost(adjustedTotalTokens, model);
+    const cost = calculateCost(totalInputTokens, estimatedOutputTokens, model);
     
     return {
       inputTokens: rawInputTokens,
@@ -321,7 +331,7 @@ export async function countImportTokens(
     const adjustedTotalTokens = totalInputTokens + estimatedOutputTokens;
     
     // Calculate cost based on the adjusted total
-    const cost = calculateCost(adjustedTotalTokens, model);
+    const cost = calculateCost(totalInputTokens, estimatedOutputTokens, model);
     
     return {
       inputTokens: rawInputTokens,

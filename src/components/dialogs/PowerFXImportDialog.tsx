@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert Power Apps Collection format to table data
  * 
  * @module PowerFXImportDialog
- * @version 5.1.10 - Updated Claude 3.5 Haiku output token pricing from $2.40 to $4.00 per million tokens
+ * @version 5.1.11 - Added detailed cost breakdown and token details display
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -291,10 +291,11 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                       <h5 className="text-sm font-medium text-gray-900 mb-2">
                         Token Usage ({getClaudeModelDisplayName(importModel)})
                       </h5>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="grid grid-cols-4 gap-2 text-xs">
                         <div className="font-medium">Metric</div>
                         <div className="font-medium">Estimated</div>
                         <div className="font-medium">Actual</div>
+                        <div className="font-medium">Cost</div>
                         
                         <div>Input Tokens</div>
                         <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
@@ -303,6 +304,9 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                           <span className={`ml-2 text-xs ${actualTokenUsage.input_tokens > (tokenCount.adjustedInputTokens + tokenCount.instructionTokens) ? 'text-red-500' : 'text-green-500'}`}>
                             ({formatDifference((tokenCount.adjustedInputTokens + tokenCount.instructionTokens), actualTokenUsage.input_tokens)})
                           </span>
+                        </div>
+                        <div>
+                          {formatCurrency((actualTokenUsage.input_tokens / 1_000_000) * MODEL_PRICING[importModel].input)}
                         </div>
                         
                         <div>Output Tokens</div>
@@ -313,6 +317,9 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                             ({formatDifference(tokenCount.estimatedOutputTokens, actualTokenUsage.output_tokens)})
                           </span>
                         </div>
+                        <div>
+                          {formatCurrency((actualTokenUsage.output_tokens / 1_000_000) * MODEL_PRICING[importModel].output)}
+                        </div>
                         
                         <div>Total Tokens</div>
                         <div>{tokenCount.adjustedTotalTokens.toLocaleString()}</div>
@@ -321,6 +328,13 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                           <span className={`ml-2 text-xs ${actualTokenUsage.total_tokens > tokenCount.adjustedTotalTokens ? 'text-red-500' : 'text-green-500'}`}>
                             ({formatDifference(tokenCount.adjustedTotalTokens, actualTokenUsage.total_tokens)})
                           </span>
+                        </div>
+                        <div>
+                          {formatCurrency(calculateCost(
+                            actualTokenUsage.input_tokens,
+                            actualTokenUsage.output_tokens,
+                            importModel
+                          ))}
                         </div>
                         
                         <div className="font-medium">Cost</div>
@@ -338,7 +352,30 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                             importModel
                           ))}
                         </div>
+                        <div></div>
                       </div>
+                      
+                      {/* Detailed token breakdown */}
+                      <div className="mt-4 border-t border-gray-200 pt-3">
+                        <h6 className="text-xs font-medium text-gray-700 mb-2">Detailed Token Breakdown</h6>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>Raw Input Tokens</div>
+                          <div>{tokenCount.inputTokens.toLocaleString()}</div>
+                          
+                          <div>System Instruction Tokens</div>
+                          <div>{tokenCount.instructionTokens.toLocaleString()}</div>
+                          
+                          <div>Input Adjustment Factor</div>
+                          <div>{(tokenCount.adjustedInputTokens / tokenCount.inputTokens).toFixed(2)}x</div>
+                          
+                          <div>Adjusted Input Tokens</div>
+                          <div>{tokenCount.adjustedInputTokens.toLocaleString()}</div>
+                          
+                          <div>Total Input Tokens (Adjusted + System)</div>
+                          <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
+                        </div>
+                      </div>
+                      
                       <div className="mt-2 text-xs text-gray-500">
                         <p>Pricing: Input ${MODEL_PRICING[importModel].input.toFixed(2)}/1M tokens · Output ${MODEL_PRICING[importModel].output.toFixed(2)}/1M tokens</p>
                       </div>

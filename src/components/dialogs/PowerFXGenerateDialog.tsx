@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 5.1.10 - Updated Claude 3.5 Haiku output token pricing from $2.40 to $4.00 per million tokens
+ * @version 5.1.11 - Added detailed cost breakdown and restored token details display
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -362,10 +362,11 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                           <h5 className="text-sm font-medium text-gray-900 mb-2">
                             Token Usage ({getClaudeModelDisplayName(generationModel)})
                           </h5>
-                          <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="grid grid-cols-4 gap-2 text-xs">
                             <div className="font-medium">Metric</div>
                             <div className="font-medium">Estimated</div>
                             <div className="font-medium">Actual</div>
+                            <div className="font-medium">Cost</div>
                             
                             <div>Input Tokens</div>
                             <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
@@ -374,6 +375,9 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                               <span className={`ml-2 text-xs ${actualTokenUsage.input_tokens > (tokenCount.adjustedInputTokens + tokenCount.instructionTokens) ? 'text-red-500' : 'text-green-500'}`}>
                                 ({formatDifference((tokenCount.adjustedInputTokens + tokenCount.instructionTokens), actualTokenUsage.input_tokens)})
                               </span>
+                            </div>
+                            <div>
+                              {formatCurrency((actualTokenUsage.input_tokens / 1_000_000) * MODEL_PRICING[generationModel].input)}
                             </div>
                             
                             <div>Output Tokens</div>
@@ -384,6 +388,9 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                                 ({formatDifference(tokenCount.estimatedOutputTokens, actualTokenUsage.output_tokens)})
                               </span>
                             </div>
+                            <div>
+                              {formatCurrency((actualTokenUsage.output_tokens / 1_000_000) * MODEL_PRICING[generationModel].output)}
+                            </div>
                             
                             <div>Total Tokens</div>
                             <div>{tokenCount.adjustedTotalTokens.toLocaleString()}</div>
@@ -392,6 +399,13 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                               <span className={`ml-2 text-xs ${actualTokenUsage.total_tokens > tokenCount.adjustedTotalTokens ? 'text-red-500' : 'text-green-500'}`}>
                                 ({formatDifference(tokenCount.adjustedTotalTokens, actualTokenUsage.total_tokens)})
                               </span>
+                            </div>
+                            <div>
+                              {formatCurrency(calculateCost(
+                                actualTokenUsage.input_tokens,
+                                actualTokenUsage.output_tokens,
+                                generationModel
+                              ))}
                             </div>
                             
                             <div className="font-medium">Cost</div>
@@ -409,7 +423,30 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                                 generationModel
                               ))}
                             </div>
+                            <div></div>
                           </div>
+                          
+                          {/* Detailed token breakdown */}
+                          <div className="mt-4 border-t border-gray-200 pt-3">
+                            <h6 className="text-xs font-medium text-gray-700 mb-2">Detailed Token Breakdown</h6>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>Raw Input Tokens</div>
+                              <div>{tokenCount.inputTokens.toLocaleString()}</div>
+                              
+                              <div>System Instruction Tokens</div>
+                              <div>{tokenCount.instructionTokens.toLocaleString()}</div>
+                              
+                              <div>Input Adjustment Factor</div>
+                              <div>{(tokenCount.adjustedInputTokens / tokenCount.inputTokens).toFixed(2)}x</div>
+                              
+                              <div>Adjusted Input Tokens</div>
+                              <div>{tokenCount.adjustedInputTokens.toLocaleString()}</div>
+                              
+                              <div>Total Input Tokens (Adjusted + System)</div>
+                              <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
+                            </div>
+                          </div>
+                          
                           <div className="mt-2 text-xs text-gray-500">
                             <p>Pricing: Input ${MODEL_PRICING[generationModel].input.toFixed(2)}/1M tokens · Output ${MODEL_PRICING[generationModel].output.toFixed(2)}/1M tokens</p>
                           </div>

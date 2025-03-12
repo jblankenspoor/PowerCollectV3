@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 5.1.1 - Improved token counter with adjustment factors and cost estimation
+ * @version 5.1.3 - Added explanatory text about dynamic token adjustment
  */
 
 import { TableProvider } from './context/TableContext';
@@ -59,7 +59,7 @@ function App() {
         
         {/* Version number in the bottom left corner */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v5.1.1
+          v5.1.3
         </div>
       </div>
       

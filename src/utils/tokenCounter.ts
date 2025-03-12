@@ -4,7 +4,7 @@
  * Provides functions to count tokens for text and data to estimate Claude API token usage
  * 
  * @module tokenCounter
- * @version 5.1.1 - Added adjustment factors to correct token counting discrepancies and cost calculation
+ * @version 5.1.3 - Added explanatory text about dynamic adjustment
  */
 
 import { AutoTokenizer } from '@xenova/transformers';
@@ -26,7 +26,7 @@ export interface TokenCount {
  * Pricing per 1M input tokens in USD
  */
 const MODEL_PRICING = {
-  'claude-3-5-haiku-20241022': 0.25, // $0.25 per 1M input tokens
+  'claude-3-5-haiku-20241022': 0.80, // $0.80 per 1M input tokens
   'claude-3-7-sonnet-20250219': 3.00, // $3.00 per 1M input tokens
 };
 
@@ -147,16 +147,10 @@ Follow these guidelines:
 /**
  * Calculate adjustment factor based on dataset size
  * @param rowCount - Number of rows in the dataset
- * @returns Adjustment factor to multiply token count by
+ * @returns Adjustment factor to multiply input token count by
  */
-function getAdjustmentFactor(rowCount: number): number {
-  if (rowCount <= 5) {
-    return 1.25; // 25% increase for small datasets
-  } else if (rowCount <= 20) {
-    return 1.40; // 40% increase for medium datasets
-  } else {
-    return 1.55; // 55% increase for large datasets
-  }
+function getInputAdjustmentFactor(rowCount: number): number {
+  return rowCount < 10 ? 1.30 : 1.40; // 30% for < 10 rows, 40% for >= 10 rows
 }
 
 /**
@@ -237,18 +231,24 @@ export async function countGenerateTokens(
     const userMessagePrefix = "Create a Power Apps collection in Power FX code using this table data. The collection should be optimized for use in a Power Apps canvas app. Here's the data to convert (timestamp: ";
     const wrapperTokens = await countTokensInText(userMessagePrefix);
     
-    const totalInputTokens = tableTokens + wrapperTokens;
-    const totalTokens = totalInputTokens + instructionTokens;
+    // Get raw input tokens
+    const rawInputTokens = tableTokens + wrapperTokens;
     
-    // Apply adjustment factor based on dataset size
-    const adjustmentFactor = getAdjustmentFactor(tasks.length);
-    const adjustedTotalTokens = Math.ceil(totalTokens * adjustmentFactor);
+    // Apply adjustment factor ONLY to input tokens
+    const adjustmentFactor = getInputAdjustmentFactor(tasks.length);
+    const adjustedInputTokens = Math.ceil(rawInputTokens * adjustmentFactor);
     
-    // Calculate cost
+    // Calculate total with adjusted input tokens + unchanged instruction tokens
+    const adjustedTotalTokens = adjustedInputTokens + instructionTokens;
+    
+    // For reference, store the unadjusted total
+    const totalTokens = rawInputTokens + instructionTokens;
+    
+    // Calculate cost based on the adjusted total
     const cost = calculateCost(adjustedTotalTokens, model);
     
     return {
-      inputTokens: totalInputTokens,
+      inputTokens: rawInputTokens,
       instructionTokens,
       totalTokens,
       adjustedTotalTokens,
@@ -286,20 +286,27 @@ export async function countImportTokens(
     const userMessagePrefix = "Parse this Power FX code and convert it to JSON: ";
     const wrapperTokens = await countTokensInText(userMessagePrefix);
     
-    const totalInputTokens = powerFXTokens + wrapperTokens;
-    const totalTokens = totalInputTokens + instructionTokens;
+    // Get raw input tokens
+    const rawInputTokens = powerFXTokens + wrapperTokens;
     
-    // Apply adjustment factor based on code size (using a proxy of token count instead of rows)
     // Roughly estimate number of rows based on tokens in the code
     const estimatedRows = Math.ceil(powerFXTokens / 100); // Rough estimate: ~100 tokens per row
-    const adjustmentFactor = getAdjustmentFactor(estimatedRows);
-    const adjustedTotalTokens = Math.ceil(totalTokens * adjustmentFactor);
     
-    // Calculate cost
+    // Apply adjustment factor ONLY to input tokens
+    const adjustmentFactor = getInputAdjustmentFactor(estimatedRows);
+    const adjustedInputTokens = Math.ceil(rawInputTokens * adjustmentFactor);
+    
+    // Calculate total with adjusted input tokens + unchanged instruction tokens
+    const adjustedTotalTokens = adjustedInputTokens + instructionTokens;
+    
+    // For reference, store the unadjusted total
+    const totalTokens = rawInputTokens + instructionTokens;
+    
+    // Calculate cost based on the adjusted total
     const cost = calculateCost(adjustedTotalTokens, model);
     
     return {
-      inputTokens: totalInputTokens,
+      inputTokens: rawInputTokens,
       instructionTokens,
       totalTokens,
       adjustedTotalTokens,

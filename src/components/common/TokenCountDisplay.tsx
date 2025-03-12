@@ -4,7 +4,7 @@
  * Displays token counts for Claude API calls with a detailed breakdown
  * 
  * @module TokenCountDisplay
- * @version 5.1.1 - Added display for adjusted token count and cost estimation
+ * @version 5.1.3 - Added explanatory text about dynamic adjustment
  */
 
 import React from 'react';
@@ -90,23 +90,27 @@ const TokenCountDisplay: React.FC<TokenCountDisplayProps> = ({
             <svg className="h-3 w-3 mr-1 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" />
             </svg>
-            <span className="font-medium mr-2">{tokenCount?.adjustedTotalTokens.toLocaleString()} tokens</span>
+            <span className="font-medium">{tokenCount?.adjustedTotalTokens.toLocaleString()} tokens</span>
             {tokenCount?.cost !== undefined && (
-              <span className="font-medium text-indigo-600">
+              <span className="font-medium text-indigo-600 ml-2">
                 {formatCurrency(tokenCount.cost)}
+              </span>
+            )}
+            {tokenCount?.modelName && (
+              <span className="ml-2 text-[10px] text-gray-500">
+                {formatModelName(tokenCount.modelName)}
               </span>
             )}
           </div>
           
           {showDetails && (
             <div className="mt-1 text-[10px] text-gray-500">
-              <div className="flex justify-between">
-                <span>Base estimate: {tokenCount?.totalTokens.toLocaleString()}</span>
-                {tokenCount?.modelName && (
-                  <span className="ml-2 font-medium">{formatModelName(tokenCount.modelName)}</span>
-                )}
+              <div>
+                <span>Estimate: {tokenCount?.totalTokens.toLocaleString()} (before dynamic adjustment)</span>
               </div>
-              <div>Input: {tokenCount?.inputTokens.toLocaleString()} · System: {tokenCount?.instructionTokens.toLocaleString()}</div>
+              <div>
+                Input: {tokenCount?.inputTokens.toLocaleString()} · System: {tokenCount?.instructionTokens.toLocaleString()}
+              </div>
             </div>
           )}
         </div>

@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 5.1.1 - Updated token counter to show adjusted token count and cost estimation
+ * @version 5.1.3 - Added explanatory text about dynamic token adjustment
  */
 
 import { Fragment, useState, useEffect } from 'react';

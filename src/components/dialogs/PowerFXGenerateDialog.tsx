@@ -209,9 +209,6 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
     return inputCost + outputCost;
   };
 
-  // Use the model that was used for generation for the token usage display
-  const displayModel = generationModel || selectedModel;
-
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={handleClose}>

@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 5.1.5 - Added output token estimation and improved total token calculation
+ * @version 6.0.0 - Major version update with deployment fixes and improved version display
  */
 
 import { TableProvider } from './context/TableContext';
@@ -12,6 +12,10 @@ import DataTable from './components/table/DataTable';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useState } from 'react';
 import { PowerFXGenerateDialog, PowerFXImportDialog } from './components/dialogs';
+import VersionDisplay from './components/common/VersionDisplay';
+
+// Import package.json for version
+import packageJson from '../package.json';
 
 /**
  * App component that provides context and renders the main UI
@@ -57,10 +61,8 @@ function App() {
           </div>
         </div>
         
-        {/* Version number in the bottom left corner */}
-        <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v5.1.5
-        </div>
+        {/* Version display component */}
+        <VersionDisplay version={packageJson.version} />
       </div>
       
       {/* PowerFX Dialogs */}

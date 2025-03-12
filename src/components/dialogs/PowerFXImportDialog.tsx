@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert Power Apps Collection format to table data
  * 
  * @module PowerFXImportDialog
- * @version 5.1.0 - Added token counter next to model selection
+ * @version 5.1.1 - Updated token counter to show adjusted token count and cost estimation
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -55,13 +55,13 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
   const [isCountingTokens, setIsCountingTokens] = useState<boolean>(false);
 
   /**
-   * Update token count when PowerFX code changes
+   * Update token count when PowerFX code or model changes
    */
   useEffect(() => {
     if (isOpen && powerFXCode) {
       updateTokenCount();
     }
-  }, [isOpen, powerFXCode]);
+  }, [isOpen, powerFXCode, selectedModel]);
 
   /**
    * Update the token count for the current PowerFX code
@@ -75,7 +75,7 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
     
     setIsCountingTokens(true);
     try {
-      const count = await countImportTokens(powerFXCode);
+      const count = await countImportTokens(powerFXCode, selectedModel);
       setTokenCount(count);
     } catch (error) {
       console.error('Error counting tokens:', error);
@@ -97,6 +97,7 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
    */
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedModel(e.target.value as ClaudeModel);
+    // Token count will update via useEffect
   };
 
   /**

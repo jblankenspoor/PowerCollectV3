@@ -4,7 +4,7 @@
  * Displays token counts for Claude API calls with a detailed breakdown
  * 
  * @module TokenCountDisplay
- * @version 5.1.0 - Initial implementation of token counter display
+ * @version 5.1.1 - Added display for adjusted token count and cost estimation
  */
 
 import React from 'react';
@@ -23,6 +23,35 @@ interface TokenCountDisplayProps {
   /** Optional CSS class name */
   className?: string;
 }
+
+/**
+ * Formats a currency value as USD
+ * @param value - The value to format
+ * @returns Formatted currency string
+ */
+const formatCurrency = (value: number): string => {
+  if (value < 0.01) {
+    return '$' + value.toFixed(5);
+  }
+  return '$' + value.toFixed(3);
+};
+
+/**
+ * Formats a model name to a display name
+ * @param modelName - The model name
+ * @returns Display name for the model
+ */
+const formatModelName = (modelName?: string): string => {
+  if (!modelName) return '';
+  
+  if (modelName.includes('3-5-haiku')) {
+    return 'C3.5 Haiku';
+  } else if (modelName.includes('3-7-sonnet')) {
+    return 'C3.7 Sonnet';
+  }
+  
+  return modelName.split('-').pop() || '';
+};
 
 /**
  * Token Count Display Component
@@ -53,21 +82,31 @@ const TokenCountDisplay: React.FC<TokenCountDisplayProps> = ({
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>Counting tokens...</span>
+          <span>Calculating tokens...</span>
         </div>
       ) : (
         <div className="leading-tight">
           <div className="flex items-center">
             <svg className="h-3 w-3 mr-1 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" />
             </svg>
-            <span className="font-medium">{tokenCount?.totalTokens.toLocaleString()} tokens</span>
+            <span className="font-medium mr-2">{tokenCount?.adjustedTotalTokens.toLocaleString()} tokens</span>
+            {tokenCount?.cost !== undefined && (
+              <span className="font-medium text-indigo-600">
+                {formatCurrency(tokenCount.cost)}
+              </span>
+            )}
           </div>
           
           {showDetails && (
             <div className="mt-1 text-[10px] text-gray-500">
-              <div>Input: {tokenCount?.inputTokens.toLocaleString()}</div>
-              <div>System: {tokenCount?.instructionTokens.toLocaleString()}</div>
+              <div className="flex justify-between">
+                <span>Base estimate: {tokenCount?.totalTokens.toLocaleString()}</span>
+                {tokenCount?.modelName && (
+                  <span className="ml-2 font-medium">{formatModelName(tokenCount.modelName)}</span>
+                )}
+              </div>
+              <div>Input: {tokenCount?.inputTokens.toLocaleString()} · System: {tokenCount?.instructionTokens.toLocaleString()}</div>
             </div>
           )}
         </div>

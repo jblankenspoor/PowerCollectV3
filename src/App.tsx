@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 5.1.1 - Added Piwik Pro analytics integration
+ * @version 5.1.1 - Improved token counter with adjustment factors and cost estimation
  */
 
 import { TableProvider } from './context/TableContext';

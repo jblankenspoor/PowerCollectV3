@@ -4,7 +4,7 @@
  * Provides functions to count tokens for text and data to estimate Claude API token usage
  * 
  * @module tokenCounter
- * @version 5.1.0 - Initial implementation of token counting functionality
+ * @version 5.1.1 - Added adjustment factors to correct token counting discrepancies and cost calculation
  */
 
 import { AutoTokenizer } from '@xenova/transformers';
@@ -17,7 +17,18 @@ export interface TokenCount {
   inputTokens: number;
   instructionTokens: number;
   totalTokens: number;
+  adjustedTotalTokens: number; // Added adjusted token count
+  cost?: number; // Added cost estimation
+  modelName?: string; // Model name for reference
 }
+
+/**
+ * Pricing per 1M input tokens in USD
+ */
+const MODEL_PRICING = {
+  'claude-3-5-haiku-20241022': 0.25, // $0.25 per 1M input tokens
+  'claude-3-7-sonnet-20250219': 3.00, // $3.00 per 1M input tokens
+};
 
 /**
  * Cache for the tokenizer to avoid reloading
@@ -134,6 +145,32 @@ Follow these guidelines:
 }
 
 /**
+ * Calculate adjustment factor based on dataset size
+ * @param rowCount - Number of rows in the dataset
+ * @returns Adjustment factor to multiply token count by
+ */
+function getAdjustmentFactor(rowCount: number): number {
+  if (rowCount <= 5) {
+    return 1.25; // 25% increase for small datasets
+  } else if (rowCount <= 20) {
+    return 1.40; // 40% increase for medium datasets
+  } else {
+    return 1.55; // 55% increase for large datasets
+  }
+}
+
+/**
+ * Calculate cost in USD for token usage
+ * @param tokenCount - Number of tokens
+ * @param model - Claude model used
+ * @returns Cost in USD
+ */
+function calculateCost(tokenCount: number, model: string): number {
+  const pricePerMillion = MODEL_PRICING[model as keyof typeof MODEL_PRICING] || 3.0; // Default to 3.7 Sonnet price
+  return (tokenCount / 1_000_000) * pricePerMillion;
+}
+
+/**
  * Count tokens for table data
  * @param tasks - Array of tasks from the table
  * @param columns - Array of column definitions
@@ -184,9 +221,14 @@ export async function countTableDataTokens(tasks: Task[], columns: Column[]): Pr
  * Count tokens for the full PowerFX generation request
  * @param tasks - Array of tasks from the table
  * @param columns - Array of column definitions
+ * @param model - Claude model to use (defaults to Claude 3.5 Haiku)
  * @returns Promise resolving to the token count details
  */
-export async function countGenerateTokens(tasks: Task[], columns: Column[]): Promise<TokenCount> {
+export async function countGenerateTokens(
+  tasks: Task[], 
+  columns: Column[],
+  model: string = 'claude-3-5-haiku-20241022'
+): Promise<TokenCount> {
   try {
     const instructionTokens = await countInstructionTokens();
     const tableTokens = await countTableDataTokens(tasks, columns);
@@ -196,18 +238,32 @@ export async function countGenerateTokens(tasks: Task[], columns: Column[]): Pro
     const wrapperTokens = await countTokensInText(userMessagePrefix);
     
     const totalInputTokens = tableTokens + wrapperTokens;
+    const totalTokens = totalInputTokens + instructionTokens;
+    
+    // Apply adjustment factor based on dataset size
+    const adjustmentFactor = getAdjustmentFactor(tasks.length);
+    const adjustedTotalTokens = Math.ceil(totalTokens * adjustmentFactor);
+    
+    // Calculate cost
+    const cost = calculateCost(adjustedTotalTokens, model);
     
     return {
       inputTokens: totalInputTokens,
       instructionTokens,
-      totalTokens: totalInputTokens + instructionTokens
+      totalTokens,
+      adjustedTotalTokens,
+      cost,
+      modelName: model
     };
   } catch (error) {
     console.error('Error counting generate tokens:', error);
     return {
       inputTokens: 0,
       instructionTokens: 0,
-      totalTokens: 0
+      totalTokens: 0,
+      adjustedTotalTokens: 0,
+      cost: 0,
+      modelName: model
     };
   }
 }
@@ -215,9 +271,13 @@ export async function countGenerateTokens(tasks: Task[], columns: Column[]): Pro
 /**
  * Count tokens for the PowerFX import request
  * @param powerFXCode - The PowerFX code to import
+ * @param model - Claude model to use (defaults to Claude 3.5 Haiku)
  * @returns Promise resolving to the token count details
  */
-export async function countImportTokens(powerFXCode: string): Promise<TokenCount> {
+export async function countImportTokens(
+  powerFXCode: string,
+  model: string = 'claude-3-5-haiku-20241022'
+): Promise<TokenCount> {
   try {
     const instructionTokens = await countImportInstructionTokens();
     const powerFXTokens = await countTokensInText(powerFXCode);
@@ -227,18 +287,34 @@ export async function countImportTokens(powerFXCode: string): Promise<TokenCount
     const wrapperTokens = await countTokensInText(userMessagePrefix);
     
     const totalInputTokens = powerFXTokens + wrapperTokens;
+    const totalTokens = totalInputTokens + instructionTokens;
+    
+    // Apply adjustment factor based on code size (using a proxy of token count instead of rows)
+    // Roughly estimate number of rows based on tokens in the code
+    const estimatedRows = Math.ceil(powerFXTokens / 100); // Rough estimate: ~100 tokens per row
+    const adjustmentFactor = getAdjustmentFactor(estimatedRows);
+    const adjustedTotalTokens = Math.ceil(totalTokens * adjustmentFactor);
+    
+    // Calculate cost
+    const cost = calculateCost(adjustedTotalTokens, model);
     
     return {
       inputTokens: totalInputTokens,
       instructionTokens,
-      totalTokens: totalInputTokens + instructionTokens
+      totalTokens,
+      adjustedTotalTokens,
+      cost,
+      modelName: model
     };
   } catch (error) {
     console.error('Error counting import tokens:', error);
     return {
       inputTokens: 0,
       instructionTokens: 0,
-      totalTokens: 0
+      totalTokens: 0,
+      adjustedTotalTokens: 0,
+      cost: 0,
+      modelName: model
     };
   }
 } 

@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 5.1.0 - Added token counter next to model selection
+ * @version 5.1.1 - Updated token counter to show adjusted token count and cost estimation
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -56,13 +56,13 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
   const [isCountingTokens, setIsCountingTokens] = useState<boolean>(false);
 
   /**
-   * Update token count when dialog is opened or table data changes
+   * Update token count when dialog is opened, table data, or model changes
    */
   useEffect(() => {
     if (isOpen && tasks.length > 0) {
       updateTokenCount();
     }
-  }, [isOpen, tasks, columns]);
+  }, [isOpen, tasks, columns, selectedModel]);
 
   /**
    * Update the token count for the current table data
@@ -72,7 +72,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
     
     setIsCountingTokens(true);
     try {
-      const count = await countGenerateTokens(tasks, columns);
+      const count = await countGenerateTokens(tasks, columns, selectedModel);
       setTokenCount(count);
     } catch (error) {
       console.error('Error counting tokens:', error);
@@ -140,6 +140,7 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
    */
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedModel(e.target.value as ClaudeModel);
+    // Token count will update via useEffect
   };
 
   return (

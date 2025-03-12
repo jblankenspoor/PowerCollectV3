@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert Power Apps Collection format to table data
  * 
  * @module PowerFXImportDialog
- * @version 5.1.11 - Added detailed cost breakdown and token details display
+ * @version 5.1.12 - Simplified token usage display by removing detailed breakdown
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -353,27 +353,6 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
                           ))}
                         </div>
                         <div></div>
-                      </div>
-                      
-                      {/* Detailed token breakdown */}
-                      <div className="mt-4 border-t border-gray-200 pt-3">
-                        <h6 className="text-xs font-medium text-gray-700 mb-2">Detailed Token Breakdown</h6>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>Raw Input Tokens</div>
-                          <div>{tokenCount.inputTokens.toLocaleString()}</div>
-                          
-                          <div>System Instruction Tokens</div>
-                          <div>{tokenCount.instructionTokens.toLocaleString()}</div>
-                          
-                          <div>Input Adjustment Factor</div>
-                          <div>{(tokenCount.adjustedInputTokens / tokenCount.inputTokens).toFixed(2)}x</div>
-                          
-                          <div>Adjusted Input Tokens</div>
-                          <div>{tokenCount.adjustedInputTokens.toLocaleString()}</div>
-                          
-                          <div>Total Input Tokens (Adjusted + System)</div>
-                          <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
-                        </div>
                       </div>
                       
                       <div className="mt-2 text-xs text-gray-500">

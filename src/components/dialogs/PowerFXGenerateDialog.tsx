@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 5.1.11 - Added detailed cost breakdown and restored token details display
+ * @version 5.1.12 - Enhanced detailed token breakdown with pricing column
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -429,21 +429,34 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                           {/* Detailed token breakdown */}
                           <div className="mt-4 border-t border-gray-200 pt-3">
                             <h6 className="text-xs font-medium text-gray-700 mb-2">Detailed Token Breakdown</h6>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div className="font-medium">Component</div>
+                              <div className="font-medium">Tokens</div>
+                              <div className="font-medium">Cost</div>
+                              
                               <div>Raw Input Tokens</div>
                               <div>{tokenCount.inputTokens.toLocaleString()}</div>
+                              <div>{formatCurrency((tokenCount.inputTokens / 1_000_000) * MODEL_PRICING[generationModel].input)}</div>
                               
                               <div>System Instruction Tokens</div>
                               <div>{tokenCount.instructionTokens.toLocaleString()}</div>
+                              <div>{formatCurrency((tokenCount.instructionTokens / 1_000_000) * MODEL_PRICING[generationModel].input)}</div>
                               
                               <div>Input Adjustment Factor</div>
                               <div>{(tokenCount.adjustedInputTokens / tokenCount.inputTokens).toFixed(2)}x</div>
+                              <div>-</div>
                               
                               <div>Adjusted Input Tokens</div>
                               <div>{tokenCount.adjustedInputTokens.toLocaleString()}</div>
+                              <div>{formatCurrency((tokenCount.adjustedInputTokens / 1_000_000) * MODEL_PRICING[generationModel].input)}</div>
                               
                               <div>Total Input Tokens (Adjusted + System)</div>
                               <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
+                              <div>{formatCurrency(((tokenCount.adjustedInputTokens + tokenCount.instructionTokens) / 1_000_000) * MODEL_PRICING[generationModel].input)}</div>
+                              
+                              <div>Estimated Output Tokens</div>
+                              <div>{tokenCount.estimatedOutputTokens.toLocaleString()}</div>
+                              <div>{formatCurrency((tokenCount.estimatedOutputTokens / 1_000_000) * MODEL_PRICING[generationModel].output)}</div>
                             </div>
                           </div>
                           

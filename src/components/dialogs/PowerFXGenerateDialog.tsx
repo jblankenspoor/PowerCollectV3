@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 5.1.12 - Enhanced detailed token breakdown with pricing column
+ * @version 6.0.0 - Removed detailed token breakdown section and improved token usage display
  */
 
 import { Fragment, useState, useEffect } from 'react';
@@ -363,44 +363,44 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                             Token Usage ({getClaudeModelDisplayName(generationModel)})
                           </h5>
                           <div className="grid grid-cols-4 gap-2 text-xs">
-                            <div className="font-medium">Metric</div>
-                            <div className="font-medium">Estimated</div>
-                            <div className="font-medium">Actual</div>
-                            <div className="font-medium">Cost</div>
+                            <div className="font-medium text-gray-800">Metric</div>
+                            <div className="font-medium text-gray-800">Estimated</div>
+                            <div className="font-medium text-gray-800">Actual</div>
+                            <div className="font-medium text-gray-800">Cost</div>
                             
-                            <div>Input Tokens</div>
-                            <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
-                            <div className="flex items-center">
+                            <div className="font-medium">Input Tokens</div>
+                            <div className="font-medium">{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
+                            <div className="flex items-center font-medium">
                               {actualTokenUsage.input_tokens.toLocaleString()}
                               <span className={`ml-2 text-xs ${actualTokenUsage.input_tokens > (tokenCount.adjustedInputTokens + tokenCount.instructionTokens) ? 'text-red-500' : 'text-green-500'}`}>
                                 ({formatDifference((tokenCount.adjustedInputTokens + tokenCount.instructionTokens), actualTokenUsage.input_tokens)})
                               </span>
                             </div>
-                            <div>
+                            <div className="font-medium">
                               {formatCurrency((actualTokenUsage.input_tokens / 1_000_000) * MODEL_PRICING[generationModel].input)}
                             </div>
                             
-                            <div>Output Tokens</div>
-                            <div>{tokenCount.estimatedOutputTokens.toLocaleString()}</div>
-                            <div className="flex items-center">
+                            <div className="font-medium">Output Tokens</div>
+                            <div className="font-medium">{tokenCount.estimatedOutputTokens.toLocaleString()}</div>
+                            <div className="flex items-center font-medium">
                               {actualTokenUsage.output_tokens.toLocaleString()}
                               <span className={`ml-2 text-xs ${actualTokenUsage.output_tokens > tokenCount.estimatedOutputTokens ? 'text-red-500' : 'text-green-500'}`}>
                                 ({formatDifference(tokenCount.estimatedOutputTokens, actualTokenUsage.output_tokens)})
                               </span>
                             </div>
-                            <div>
+                            <div className="font-medium">
                               {formatCurrency((actualTokenUsage.output_tokens / 1_000_000) * MODEL_PRICING[generationModel].output)}
                             </div>
                             
-                            <div>Total Tokens</div>
-                            <div>{tokenCount.adjustedTotalTokens.toLocaleString()}</div>
-                            <div className="flex items-center">
+                            <div className="font-medium">Total Tokens</div>
+                            <div className="font-medium">{tokenCount.adjustedTotalTokens.toLocaleString()}</div>
+                            <div className="flex items-center font-medium">
                               {actualTokenUsage.total_tokens.toLocaleString()}
                               <span className={`ml-2 text-xs ${actualTokenUsage.total_tokens > tokenCount.adjustedTotalTokens ? 'text-red-500' : 'text-green-500'}`}>
                                 ({formatDifference(tokenCount.adjustedTotalTokens, actualTokenUsage.total_tokens)})
                               </span>
                             </div>
-                            <div>
+                            <div className="font-medium">
                               {formatCurrency(calculateCost(
                                 actualTokenUsage.input_tokens,
                                 actualTokenUsage.output_tokens,
@@ -408,15 +408,15 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                               ))}
                             </div>
                             
-                            <div className="font-medium">Cost</div>
-                            <div className="font-medium">
+                            <div className="font-medium text-gray-800">Cost</div>
+                            <div className="font-medium text-gray-800">
                               {formatCurrency(calculateCost(
                                 tokenCount.adjustedInputTokens + tokenCount.instructionTokens,
                                 tokenCount.estimatedOutputTokens,
                                 generationModel
                               ))}
                             </div>
-                            <div className="font-medium">
+                            <div className="font-medium text-gray-800">
                               {formatCurrency(calculateCost(
                                 actualTokenUsage.input_tokens,
                                 actualTokenUsage.output_tokens,
@@ -424,44 +424,10 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                               ))}
                             </div>
                             <div></div>
-                          </div>
-                          
-                          {/* Detailed token breakdown */}
-                          <div className="mt-4 border-t border-gray-200 pt-3">
-                            <h6 className="text-xs font-medium text-gray-700 mb-2">Detailed Token Breakdown</h6>
-                            <div className="grid grid-cols-3 gap-2 text-xs">
-                              <div className="font-medium">Component</div>
-                              <div className="font-medium">Tokens</div>
-                              <div className="font-medium">Cost</div>
-                              
-                              <div>Raw Input Tokens</div>
-                              <div>{tokenCount.inputTokens.toLocaleString()}</div>
-                              <div>{formatCurrency((tokenCount.inputTokens / 1_000_000) * MODEL_PRICING[generationModel].input)}</div>
-                              
-                              <div>System Instruction Tokens</div>
-                              <div>{tokenCount.instructionTokens.toLocaleString()}</div>
-                              <div>{formatCurrency((tokenCount.instructionTokens / 1_000_000) * MODEL_PRICING[generationModel].input)}</div>
-                              
-                              <div>Input Adjustment Factor</div>
-                              <div>{(tokenCount.adjustedInputTokens / tokenCount.inputTokens).toFixed(2)}x</div>
-                              <div>-</div>
-                              
-                              <div>Adjusted Input Tokens</div>
-                              <div>{tokenCount.adjustedInputTokens.toLocaleString()}</div>
-                              <div>{formatCurrency((tokenCount.adjustedInputTokens / 1_000_000) * MODEL_PRICING[generationModel].input)}</div>
-                              
-                              <div>Total Input Tokens (Adjusted + System)</div>
-                              <div>{(tokenCount.adjustedInputTokens + tokenCount.instructionTokens).toLocaleString()}</div>
-                              <div>{formatCurrency(((tokenCount.adjustedInputTokens + tokenCount.instructionTokens) / 1_000_000) * MODEL_PRICING[generationModel].input)}</div>
-                              
-                              <div>Estimated Output Tokens</div>
-                              <div>{tokenCount.estimatedOutputTokens.toLocaleString()}</div>
-                              <div>{formatCurrency((tokenCount.estimatedOutputTokens / 1_000_000) * MODEL_PRICING[generationModel].output)}</div>
+                            
+                            <div className="col-span-4 text-xs text-gray-500 mt-1">
+                              <p>Pricing: Input ${MODEL_PRICING[generationModel].input.toFixed(2)}/1M tokens · Output ${MODEL_PRICING[generationModel].output.toFixed(2)}/1M tokens</p>
                             </div>
-                          </div>
-                          
-                          <div className="mt-2 text-xs text-gray-500">
-                            <p>Pricing: Input ${MODEL_PRICING[generationModel].input.toFixed(2)}/1M tokens · Output ${MODEL_PRICING[generationModel].output.toFixed(2)}/1M tokens</p>
                           </div>
                         </div>
                       )}

@@ -4,11 +4,12 @@
  * Displays token counts for Claude API calls with a detailed breakdown
  * 
  * @module TokenCountDisplay
- * @version 5.1.10 - Updated Claude 3.5 Haiku output token pricing from $2.40 to $4.00 per million tokens
+ * @version 5.1.15 - Enhanced with expandable detailed token breakdown section
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { TokenCount } from '../../utils/tokenCounter';
+import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 /**
  * Props for TokenCountDisplay component
@@ -20,6 +21,8 @@ interface TokenCountDisplayProps {
   isLoading?: boolean;
   /** Whether to display detailed breakdown */
   showDetails?: boolean;
+  /** Whether to allow expanding the detailed breakdown */
+  allowExpand?: boolean;
   /** Optional CSS class name */
   className?: string;
 }
@@ -103,15 +106,17 @@ const TokenCountDisplay: React.FC<TokenCountDisplayProps> = ({
   tokenCount, 
   isLoading = false, 
   showDetails = false,
+  allowExpand = true,
   className = ''
 }) => {
+  const [expanded, setExpanded] = useState(false);
   // If no token count and not loading, don't render anything
   if (!tokenCount && !isLoading) {
     return null;
   }
   
   // Default class names
-  const baseClass = "text-xs text-gray-600 rounded bg-gray-100 px-2 py-1 flex items-center";
+  const baseClass = "text-xs text-gray-600 rounded bg-gray-100 px-2 py-1";
   const combinedClassName = `${baseClass} ${className}`;
   
   // Calculate total input tokens (including system tokens)
@@ -125,7 +130,7 @@ const TokenCountDisplay: React.FC<TokenCountDisplayProps> = ({
   ) : 0;
   
   return (
-    <div className={combinedClassName}>
+    <div className={combinedClassName} data-component-name="TokenCountDisplay">
       {isLoading ? (
         <div className="flex items-center">
           <svg className="animate-spin h-3 w-3 mr-1 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -135,30 +140,84 @@ const TokenCountDisplay: React.FC<TokenCountDisplayProps> = ({
           <span>Calculating tokens...</span>
         </div>
       ) : (
-        <div className="leading-tight">
-          <div className="flex items-center">
-            <svg className="h-3 w-3 mr-1 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" />
-            </svg>
-            <span className="font-medium">{tokenCount?.adjustedTotalTokens.toLocaleString()} tokens</span>
-            <span className="font-medium text-indigo-600 ml-2">
-              {formatCurrency(cost)}
-            </span>
-            {tokenCount?.modelName && (
-              <span className="ml-2 text-[10px] text-gray-500">
-                {formatModelName(tokenCount.modelName)}
+        <div className="leading-tight" data-component-name="TokenCountDisplay">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center" data-component-name="TokenCountDisplay">
+              <svg className="h-3 w-3 mr-1 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" />
+              </svg>
+              <span className="font-medium" data-component-name="TokenCountDisplay">{tokenCount?.adjustedTotalTokens.toLocaleString()} tokens</span>
+              <span className="font-medium text-indigo-600 ml-2" data-component-name="TokenCountDisplay">
+                {formatCurrency(cost)}
               </span>
+              {tokenCount?.modelName && (
+                <span className="ml-2 text-[10px] text-gray-500" data-component-name="TokenCountDisplay">
+                  {formatModelName(tokenCount.modelName)}
+                </span>
+              )}
+            </div>
+            {allowExpand && tokenCount && (
+              <button 
+                onClick={() => setExpanded(!expanded)} 
+                className="ml-2 p-1 hover:bg-gray-200 rounded-full transition-colors"
+                aria-label={expanded ? "Collapse token details" : "Expand token details"}
+              >
+                {expanded ? (
+                  <ChevronUpIcon className="h-3 w-3 text-gray-500" />
+                ) : (
+                  <ChevronDownIcon className="h-3 w-3 text-gray-500" />
+                )}
+              </button>
             )}
           </div>
           
-          {showDetails && (
-            <div className="mt-1 text-[10px] text-gray-500">
-              <div>
+          {(showDetails || expanded) && (
+            <div className="mt-1 text-[10px] text-gray-500" data-component-name="TokenCountDisplay">
+              <div data-component-name="TokenCountDisplay">
                 Input: {totalInputTokens.toLocaleString()} · Output: {tokenCount?.estimatedOutputTokens.toLocaleString()}
               </div>
-              <div>
+              <div data-component-name="TokenCountDisplay">
                 Total: {tokenCount?.adjustedTotalTokens.toLocaleString()} ({formatCurrency(cost)})
               </div>
+              
+              {expanded && tokenCount && (
+                <div className="mt-2 border-t border-gray-200 pt-2" data-component-name="TokenCountDisplay">
+                  <h6 className="font-medium mb-1">Detailed Token Breakdown</h6>
+                  <div className="grid grid-cols-3 gap-x-2 gap-y-1">
+                    <div className="font-medium">Component</div>
+                    <div className="font-medium">Tokens</div>
+                    <div className="font-medium">Cost</div>
+                    
+                    <div>Raw Input</div>
+                    <div>{tokenCount.inputTokens.toLocaleString()}</div>
+                    <div>{formatCurrency((tokenCount.inputTokens / 1_000_000) * (MODEL_PRICING[tokenCount.modelName as keyof typeof MODEL_PRICING]?.input || 0))}</div>
+                    
+                    <div>System Instruction</div>
+                    <div>{tokenCount.instructionTokens.toLocaleString()}</div>
+                    <div>{formatCurrency((tokenCount.instructionTokens / 1_000_000) * (MODEL_PRICING[tokenCount.modelName as keyof typeof MODEL_PRICING]?.input || 0))}</div>
+                    
+                    <div>Input Adjustment</div>
+                    <div>{(tokenCount.adjustedInputTokens / tokenCount.inputTokens).toFixed(2)}x</div>
+                    <div>-</div>
+                    
+                    <div>Adjusted Input</div>
+                    <div>{tokenCount.adjustedInputTokens.toLocaleString()}</div>
+                    <div>{formatCurrency((tokenCount.adjustedInputTokens / 1_000_000) * (MODEL_PRICING[tokenCount.modelName as keyof typeof MODEL_PRICING]?.input || 0))}</div>
+                    
+                    <div>Total Input</div>
+                    <div>{totalInputTokens.toLocaleString()}</div>
+                    <div>{formatCurrency((totalInputTokens / 1_000_000) * (MODEL_PRICING[tokenCount.modelName as keyof typeof MODEL_PRICING]?.input || 0))}</div>
+                    
+                    <div>Estimated Output</div>
+                    <div>{tokenCount.estimatedOutputTokens.toLocaleString()}</div>
+                    <div>{formatCurrency((tokenCount.estimatedOutputTokens / 1_000_000) * (MODEL_PRICING[tokenCount.modelName as keyof typeof MODEL_PRICING]?.output || 0))}</div>
+                    
+                    <div className="font-medium border-t border-gray-200 pt-1">Total</div>
+                    <div className="font-medium border-t border-gray-200 pt-1">{tokenCount.adjustedTotalTokens.toLocaleString()}</div>
+                    <div className="font-medium border-t border-gray-200 pt-1">{formatCurrency(cost)}</div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

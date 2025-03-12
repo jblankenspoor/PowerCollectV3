@@ -5,7 +5,7 @@
  * Uses the Claude API client to convert Power Apps Collection format to table data
  * 
  * @module PowerFXImportDialog
- * @version 5.1.12 - Simplified token usage display by removing detailed breakdown
+ * @version 5.1.14 - Removed detailed token breakdown section
  */
 
 import { Fragment, useState, useEffect } from 'react';

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude API Function Code</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2b6cb0;
+        }
+        pre {
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .function-info {
+            background-color: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+        }
+        .instructions {
+            background-color: #f0fff4;
+            border-left: 4px solid #48bb78;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #2b6cb0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Claude API Edge Function</h1>
+    
+    <div class="function-info">
+        <h3>Function Details</h3>
+        <p><strong>Name:</strong> claude-api-proxy</p>
+        <p><strong>Project:</strong> lykwvupycqukyfapqdyp</p>
+        <p><strong>Last Updated:</strong> <span id="lastUpdated"></span></p>
+    </div>
+    
+    <div class="instructions">
+        <h3>Deployment Instructions</h3>
+        <p>1. Copy the code below</p>
+        <p>2. Paste it into the Supabase Edge Function editor</p>
+        <p>3. Deploy the function</p>
+        <p>4. Set the <code>CLAUDE_API_KEY</code> secret in the Supabase Dashboard</p>
+        <button id="copyBtn">Copy Code</button>
+    </div>
+    
+    <h3>Function Code:</h3>
+    <pre id="codeBlock"></pre>
+    
+    <script>
+        // Load and display the function code
+        fetch('claude-api-proxy.ts')
+            .then(response => response.text())
+            .then(code => {
+                document.getElementById('codeBlock').textContent = code;
+                
+                // Set last updated date
+                const now = new Date();
+                document.getElementById('lastUpdated').textContent = now.toLocaleString();
+            });
+        
+        // Copy code button functionality
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            const codeBlock = document.getElementById('codeBlock');
+            const range = document.createRange();
+            range.selectNode(codeBlock);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            window.getSelection().removeAllRanges();
+            
+            const btn = document.getElementById('copyBtn');
+            btn.textContent = 'Copied!';
+            setTimeout(() => {
+                btn.textContent = 'Copy Code';
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

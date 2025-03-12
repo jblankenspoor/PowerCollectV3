@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 5.0.0 - Implemented editable headers feature with proper PowerFX formatting
+ * @version 5.1.0 - Added token counter next to model selection in dialogs
  */
 
 import { TableProvider } from './context/TableContext';
@@ -59,7 +59,7 @@ function App() {
         
         {/* Version number in the bottom left corner */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v5.0.0
+          v5.1.0
         </div>
       </div>
       

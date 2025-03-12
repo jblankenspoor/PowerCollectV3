@@ -5,14 +5,16 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 4.1.4 - Improved error handling with detailed messages
+ * @version 5.1.0 - Added token counter next to model selection
  */
 
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, DocumentTextIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useTableContext } from '../../context/TableContext';
 import { convertTableToPowerFX, ClaudeModel, getClaudeModelDisplayName } from '../../utils/claudeApiClient';
+import TokenCountDisplay from '../common/TokenCountDisplay';
+import { countGenerateTokens, TokenCount } from '../../utils/tokenCounter';
 
 /**
  * Props for the PowerFXGenerateDialog component
@@ -48,6 +50,36 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<ClaudeModel>('claude-3-5-haiku-20241022');
+  
+  // State for token counting
+  const [tokenCount, setTokenCount] = useState<TokenCount | null>(null);
+  const [isCountingTokens, setIsCountingTokens] = useState<boolean>(false);
+
+  /**
+   * Update token count when dialog is opened or table data changes
+   */
+  useEffect(() => {
+    if (isOpen && tasks.length > 0) {
+      updateTokenCount();
+    }
+  }, [isOpen, tasks, columns]);
+
+  /**
+   * Update the token count for the current table data
+   */
+  const updateTokenCount = async () => {
+    if (tasks.length === 0) return;
+    
+    setIsCountingTokens(true);
+    try {
+      const count = await countGenerateTokens(tasks, columns);
+      setTokenCount(count);
+    } catch (error) {
+      console.error('Error counting tokens:', error);
+    } finally {
+      setIsCountingTokens(false);
+    }
+  };
 
   /**
    * Generate Power Apps Collection code from the current table data
@@ -168,9 +200,16 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                   {!powerFXCode && !isLoading && !error && (
                     <div>
                       <div className="mb-4">
-                        <label htmlFor="claude-model" className="block text-sm font-medium text-gray-700 mb-1">
-                          Claude Model
-                        </label>
+                        <div className="flex justify-between items-center mb-1">
+                          <label htmlFor="claude-model" className="block text-sm font-medium text-gray-700">
+                            Claude Model
+                          </label>
+                          <TokenCountDisplay 
+                            tokenCount={tokenCount} 
+                            isLoading={isCountingTokens}
+                            showDetails={true}
+                          />
+                        </div>
                         <select
                           id="claude-model"
                           name="claude-model"
@@ -251,41 +290,46 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                       </div>
                       
                       <div className="mt-4">
-                        <div className="mb-4">
-                          <label htmlFor="regenerate-claude-model" className="block text-sm font-medium text-gray-700 mb-1">
+                        <div className="flex justify-between items-center mb-1">
+                          <label htmlFor="regenerate-claude-model" className="block text-sm font-medium text-gray-700">
                             Claude Model for Regeneration
                           </label>
-                          <select
-                            id="regenerate-claude-model"
-                            name="regenerate-claude-model"
-                            className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                            value={selectedModel}
-                            onChange={handleModelChange}
-                          >
-                            {CLAUDE_MODELS.map((model) => (
-                              <option key={model} value={model}>
-                                {getClaudeModelDisplayName(model)}
-                              </option>
-                            ))}
-                          </select>
+                          <TokenCountDisplay 
+                            tokenCount={tokenCount} 
+                            isLoading={isCountingTokens}
+                            showDetails={false}
+                          />
                         </div>
+                        <select
+                          id="regenerate-claude-model"
+                          name="regenerate-claude-model"
+                          className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                          value={selectedModel}
+                          onChange={handleModelChange}
+                        >
+                          {CLAUDE_MODELS.map((model) => (
+                            <option key={model} value={model}>
+                              {getClaudeModelDisplayName(model)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       
-                        <div className="flex justify-end space-x-3">
-                          <button
-                            type="button"
-                            className="inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                            onClick={handleClose}
-                          >
-                            Close
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                            onClick={generateCollectionCode}
-                          >
-                            Regenerate
-                          </button>
-                        </div>
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:w-auto"
+                          onClick={generateCollectionCode}
+                        >
+                          Regenerate Collection
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto"
+                          onClick={handleClose}
+                        >
+                          Done
+                        </button>
                       </div>
                     </div>
                   )}

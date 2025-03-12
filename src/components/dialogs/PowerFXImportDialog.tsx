@@ -5,14 +5,16 @@
  * Uses the Claude API client to convert Power Apps Collection format to table data
  * 
  * @module PowerFXImportDialog
- * @version 4.0.9 - Updated Claude models to latest versions (3.5 Haiku and 3.7 Sonnet)
+ * @version 5.1.0 - Added token counter next to model selection
  */
 
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { useTableContext } from '../../context/TableContext';
 import { convertPowerFXToTable, ClaudeModel, getClaudeModelDisplayName } from '../../utils/claudeApiClient';
+import TokenCountDisplay from '../common/TokenCountDisplay';
+import { countImportTokens, TokenCount } from '../../utils/tokenCounter';
 
 /**
  * Props for the PowerFXImportDialog component
@@ -47,6 +49,40 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<ClaudeModel>('claude-3-5-haiku-20241022');
+  
+  // State for token counting
+  const [tokenCount, setTokenCount] = useState<TokenCount | null>(null);
+  const [isCountingTokens, setIsCountingTokens] = useState<boolean>(false);
+
+  /**
+   * Update token count when PowerFX code changes
+   */
+  useEffect(() => {
+    if (isOpen && powerFXCode) {
+      updateTokenCount();
+    }
+  }, [isOpen, powerFXCode]);
+
+  /**
+   * Update the token count for the current PowerFX code
+   */
+  const updateTokenCount = async () => {
+    // Only calculate tokens if there's actual code
+    if (!powerFXCode.trim()) {
+      setTokenCount(null);
+      return;
+    }
+    
+    setIsCountingTokens(true);
+    try {
+      const count = await countImportTokens(powerFXCode);
+      setTokenCount(count);
+    } catch (error) {
+      console.error('Error counting tokens:', error);
+    } finally {
+      setIsCountingTokens(false);
+    }
+  };
 
   /**
    * Handle Power Apps Collection code input change
@@ -157,9 +193,16 @@ export default function PowerFXImportDialog({ isOpen, onClose }: PowerFXImportDi
 
                 <div className="mt-5 sm:mt-4">
                   <div className="mb-4">
-                    <label htmlFor="powerfx-code" className="block text-sm font-medium leading-6 text-gray-900">
-                      Collection Code
-                    </label>
+                    <div className="flex justify-between items-center">
+                      <label htmlFor="powerfx-code" className="block text-sm font-medium leading-6 text-gray-900">
+                        Collection Code
+                      </label>
+                      <TokenCountDisplay 
+                        tokenCount={tokenCount} 
+                        isLoading={isCountingTokens}
+                        showDetails={true}
+                      />
+                    </div>
                     <div className="mt-2">
                       <textarea
                         id="powerfx-code"

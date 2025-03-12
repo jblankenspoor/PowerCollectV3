@@ -1,9 +1,10 @@
 /**
  * Dialog Components Index
  * 
- * Exports all dialog components for easy imports elsewhere.
+ * Exports all dialog components for easier imports
  * 
- * @module DialogComponents
+ * @module dialogs
+ * @version 5.1.0 - Added token counter functionality
  */
 
 export { default as ImportDataDialog } from './ImportDataDialog';

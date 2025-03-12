@@ -1,6 +1,6 @@
 {
   "name": "powercollectv3",
-  "version": "5.1.0",
+  "version": "5.1.1",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
+    "@piwikpro/react-piwik-pro": "^2.4.0",
     "@types/file-saver": "^2.0.7",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",

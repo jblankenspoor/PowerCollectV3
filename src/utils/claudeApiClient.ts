@@ -5,6 +5,7 @@
  * 
  * @module claudeApiClient
  * @version 4.1.5 - Fixed column title formatting for "Start Date" in Power FX generation
+ * @version 4.2.1 - Added token usage information to API response
  */
 
 import { Column, Task } from '../types/dataTypes';
@@ -57,24 +58,42 @@ export const getClaudeModelDisplayName = (model: ClaudeModel): string => {
 };
 
 /**
+ * Interface for Claude API token usage information
+ */
+export interface ClaudeTokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+}
+
+/**
+ * Interface for PowerFX generation result
+ */
+export interface PowerFXGenerationResult {
+  code: string;
+  tokenUsage: ClaudeTokenUsage | null;
+}
+
+/**
  * Convert table data to Power FX code using Claude API via Supabase
  * 
  * @param tasks - Array of task objects from the table
  * @param columns - Array of column definitions
  * @param model - Claude model to use for generation (defaults to Claude 3.5 Haiku)
- * @returns Promise containing the generated Power FX code
+ * @returns Promise containing the generated Power FX code and token usage information
  * @version 4.2.0 - Fixed issue where old column titles were still visible to Claude 3.5 Haiku
  */
 export const convertTableToPowerFX = async (
   tasks: Task[],
   columns: Column[],
   model: ClaudeModel = 'claude-3-5-haiku-20241022'
-): Promise<string> => {
+): Promise<PowerFXGenerationResult> => {
   try {
     // For development and testing, we can use a fallback method if Supabase API key is not configured
     if (!isSupabaseApiKeyConfigured()) {
       console.warn('Supabase API key not configured. Using fallback method for PowerFX generation.');
-      return `// PowerCollect Data Collection
+      return {
+        code: `// PowerCollect Data Collection
 // This is a placeholder collection as the API key is not configured.
 // Please configure the VITE_SUPABASE_API_KEY environment variable.
 
@@ -87,7 +106,9 @@ ClearCollect(
   ]
 );
 
-// Made with PowerCollect https://powercollect.jacco.me`;
+// Made with PowerCollect https://powercollect.jacco.me`,
+        tokenUsage: null
+      };
     }
 
     // Make a deep clone of the columns to avoid any reference issues
@@ -261,9 +282,19 @@ Follow these specific guidelines:
       const data = await response.json();
       console.log('Response from Claude API:', data);
       
+      // Extract token usage information
+      const tokenUsage: ClaudeTokenUsage | null = data.usage ? {
+        input_tokens: data.usage.input_tokens,
+        output_tokens: data.usage.output_tokens,
+        total_tokens: data.usage.input_tokens + data.usage.output_tokens
+      } : null;
+      
       // Extract the Power FX code from the response
       if (data.content && data.content.length > 0) {
-        return data.content[0].text;
+        return {
+          code: data.content[0].text,
+          tokenUsage
+        };
       } else {
         throw new Error('No content returned from Claude API');
       }

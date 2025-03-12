@@ -4,7 +4,7 @@
  * Displays token counts for Claude API calls with a detailed breakdown
  * 
  * @module TokenCountDisplay
- * @version 5.1.3 - Added explanatory text about dynamic adjustment
+ * @version 5.1.4 - Added display of actual token usage from Claude API
  */
 
 import React from 'react';

@@ -4,7 +4,7 @@
  * Provides functions to count tokens for text and data to estimate Claude API token usage
  * 
  * @module tokenCounter
- * @version 5.1.3 - Added explanatory text about dynamic adjustment
+ * @version 5.1.4 - Added display of actual token usage from Claude API
  */
 
 import { AutoTokenizer } from '@xenova/transformers';

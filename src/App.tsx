@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 5.1.3 - Added explanatory text about dynamic token adjustment
+ * @version 5.1.4 - Added display of actual token usage from Claude API
  */
 
 import { TableProvider } from './context/TableContext';
@@ -59,7 +59,7 @@ function App() {
         
         {/* Version number in the bottom left corner */}
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          v5.1.3
+          v5.1.4
         </div>
       </div>
       

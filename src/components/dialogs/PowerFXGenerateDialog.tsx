@@ -5,14 +5,14 @@
  * Uses the Claude API client to convert table data to Power Apps Collection format
  * 
  * @module PowerFXGenerateDialog
- * @version 5.1.3 - Added explanatory text about dynamic token adjustment
+ * @version 5.1.4 - Added display of actual token usage from Claude API
  */
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, DocumentTextIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useTableContext } from '../../context/TableContext';
-import { convertTableToPowerFX, ClaudeModel, getClaudeModelDisplayName } from '../../utils/claudeApiClient';
+import { convertTableToPowerFX, ClaudeModel, getClaudeModelDisplayName, ClaudeTokenUsage } from '../../utils/claudeApiClient';
 import TokenCountDisplay from '../common/TokenCountDisplay';
 import { countGenerateTokens, TokenCount } from '../../utils/tokenCounter';
 
@@ -54,6 +54,9 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
   // State for token counting
   const [tokenCount, setTokenCount] = useState<TokenCount | null>(null);
   const [isCountingTokens, setIsCountingTokens] = useState<boolean>(false);
+  
+  // State for actual token usage from Claude API
+  const [actualTokenUsage, setActualTokenUsage] = useState<ClaudeTokenUsage | null>(null);
 
   /**
    * Update token count when dialog is opened, table data, or model changes
@@ -90,8 +93,9 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
     
     try {
       // Convert table data to PowerFX using Claude API with selected model
-      const code = await convertTableToPowerFX(tasks, columns, selectedModel);
-      setPowerFXCode(code);
+      const result = await convertTableToPowerFX(tasks, columns, selectedModel);
+      setPowerFXCode(result.code);
+      setActualTokenUsage(result.tokenUsage);
     } catch (err) {
       console.error('Error generating PowerFX code:', err);
       
@@ -141,6 +145,20 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedModel(e.target.value as ClaudeModel);
     // Token count will update via useEffect
+  };
+
+  /**
+   * Format percentage difference between estimated and actual token usage
+   * @param estimated - Estimated token count
+   * @param actual - Actual token count
+   * @returns Formatted percentage difference
+   */
+  const formatDifference = (estimated: number, actual: number): string => {
+    if (estimated === 0 || actual === 0) return 'N/A';
+    
+    const difference = ((actual - estimated) / estimated) * 100;
+    const sign = difference >= 0 ? '+' : '';
+    return `${sign}${difference.toFixed(1)}%`;
   };
 
   return (
@@ -286,6 +304,44 @@ export default function PowerFXGenerateDialog({ isOpen, onClose }: PowerFXGenera
                           )}
                         </button>
                       </div>
+                      
+                      {/* Token usage comparison */}
+                      {actualTokenUsage && tokenCount && (
+                        <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+                          <h5 className="text-sm font-medium text-gray-900 mb-2">Token Usage</h5>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="font-medium">Metric</div>
+                            <div className="font-medium">Estimated</div>
+                            <div className="font-medium">Actual</div>
+                            
+                            <div>Input Tokens</div>
+                            <div>{tokenCount.inputTokens.toLocaleString()}</div>
+                            <div className="flex items-center">
+                              {actualTokenUsage.input_tokens.toLocaleString()}
+                              <span className={`ml-2 text-xs ${actualTokenUsage.input_tokens > tokenCount.inputTokens ? 'text-red-500' : 'text-green-500'}`}>
+                                ({formatDifference(tokenCount.inputTokens, actualTokenUsage.input_tokens)})
+                              </span>
+                            </div>
+                            
+                            <div>Output Tokens</div>
+                            <div>N/A</div>
+                            <div>{actualTokenUsage.output_tokens.toLocaleString()}</div>
+                            
+                            <div>Total Tokens</div>
+                            <div>{tokenCount.adjustedTotalTokens.toLocaleString()}</div>
+                            <div className="flex items-center">
+                              {actualTokenUsage.total_tokens.toLocaleString()}
+                              <span className={`ml-2 text-xs ${actualTokenUsage.total_tokens > tokenCount.adjustedTotalTokens ? 'text-red-500' : 'text-green-500'}`}>
+                                ({formatDifference(tokenCount.adjustedTotalTokens, actualTokenUsage.total_tokens)})
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">
+                            <p>Estimate: {tokenCount.totalTokens.toLocaleString()} (before dynamic adjustment)</p>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="bg-gray-50 p-4 rounded-md overflow-auto max-h-96">
                         <pre className="text-xs text-gray-800 whitespace-pre-wrap">{powerFXCode}</pre>
                       </div>

@@ -4,7 +4,7 @@
  * This Supabase Edge Function acts as a proxy for the Claude API to avoid CORS issues.
  * It forwards requests from the frontend to the Claude API and returns the responses.
  * 
- * @version 1.1.0 - Updated for Claude API authentication method
+ * @version 1.2.1 - Fixed authentication for Claude 3.5 Haiku
  */
 
 // deno-lint-ignore-file no-explicit-any
@@ -49,8 +49,8 @@ serve(async (req) => {
     console.log('Model:', model);
     console.log('Request headers:', {
       'Content-Type': 'application/json',
-      'x-api-key': 'PRESENT (not showing for security)',
-      'anthropic-version': '2023-06-01'
+      'anthropic-api-key': 'PRESENT (not showing for security)',
+      'anthropic-version': '2023-01-01'
     });
     
     // Make the request to Claude API
@@ -58,8 +58,9 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
+        'anthropic-api-key': CLAUDE_API_KEY,
+        'anthropic-version': '2023-01-01',
+        'x-api-key': CLAUDE_API_KEY
       },
       body: JSON.stringify({
         model,

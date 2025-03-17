@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Claude API via Supabase Edge Function</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2563eb;
+        }
+        h2 {
+            color: #4b5563;
+            margin-top: 30px;
+        }
+        pre {
+            background-color: #f3f4f6;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        .response {
+            margin-top: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        .success {
+            background-color: #ecfdf5;
+            border-left: 4px solid #10b981;
+        }
+        .error {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .model-selector {
+            margin-bottom: 20px;
+        }
+        select {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #d1d5db;
+            font-size: 16px;
+        }
+        label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Claude API via Supabase Edge Function</h1>
+    
+    <div class="model-selector">
+        <label for="model">Select Claude Model:</label>
+        <select id="model">
+            <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
+            <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet</option>
+        </select>
+    </div>
+    
+    <button id="testButton" onclick="testClaudeAPI()">Test Claude API</button>
+    <button id="clearButton" onclick="clearResponse()">Clear Response</button>
+    
+    <div id="responseContainer" class="response" style="display: none;">
+        <h2>Response</h2>
+        <pre id="responseOutput"></pre>
+    </div>
+    
+    <script>
+        // Supabase Edge Function URL
+        const SUPABASE_FUNCTION_URL = 'https://lykwvupycqukyfapqdyp.supabase.co/functions/v1/claude-api-proxy';
+        // Supabase API key (anon key)
+        const SUPABASE_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5a3d2dXB5Y3F1a3lmYXBxZHlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE2MzQzOTksImV4cCI6MjA1NzIxMDM5OX0.wZKCkDIzfk9VWRGsKvzB__iIu8OLmvTC4KK_HCP8LjM';
+        
+        async function testClaudeAPI() {
+            const testButton = document.getElementById('testButton');
+            const responseContainer = document.getElementById('responseContainer');
+            const responseOutput = document.getElementById('responseOutput');
+            const modelSelect = document.getElementById('model');
+            const selectedModel = modelSelect.value;
+            
+            // Show loading state
+            testButton.disabled = true;
+            testButton.innerHTML = '<div class="loading"></div> Testing...';
+            responseContainer.style.display = 'none';
+            
+            try {
+                // Prepare request body
+                const requestBody = {
+                    model: selectedModel,
+                    max_tokens: 100,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: 'Say hello and tell me which Claude model you are.'
+                        }
+                    ],
+                    system: 'You are a helpful assistant.'
+                };
+                
+                // Make the API request
+                const response = await fetch(SUPABASE_FUNCTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_API_KEY,
+                        'Authorization': `Bearer ${SUPABASE_API_KEY}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                // Get the response data
+                const data = await response.json();
+                
+                // Display the response
+                responseContainer.style.display = 'block';
+                
+                if (response.ok) {
+                    responseContainer.className = 'response success';
+                    responseOutput.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    responseContainer.className = 'response error';
+                    responseOutput.textContent = `Error: ${response.status} ${response.statusText}\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                // Display error
+                responseContainer.style.display = 'block';
+                responseContainer.className = 'response error';
+                responseOutput.textContent = `Error: ${error.message}`;
+            } finally {
+                // Reset button state
+                testButton.disabled = false;
+                testButton.textContent = 'Test Claude API';
+            }
+        }
+        
+        function clearResponse() {
+            const responseContainer = document.getElementById('responseContainer');
+            const responseOutput = document.getElementById('responseOutput');
+            
+            responseContainer.style.display = 'none';
+            responseOutput.textContent = '';
+        }
+    </script>
+</body>
+</html> 

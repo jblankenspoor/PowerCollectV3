@@ -2,10 +2,10 @@
  * Claude API Proxy Edge Function
  * 
  * This function acts as a proxy for the Claude API, handling CORS issues and forwarding requests.
- * It uses the x-api-key authentication method for the Claude API.
+ * It uses the anthropic-api-key authentication method for the Claude API.
  * 
- * @version 1.0.0
- * @date 2025-03-10
+ * @version 1.1.1 - Fixed authentication for Claude 3.5 Haiku
+ * @date 2025-03-17
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
@@ -50,8 +50,9 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
+        'anthropic-api-key': CLAUDE_API_KEY,
+        'anthropic-version': '2023-01-01',
+        'x-api-key': CLAUDE_API_KEY
       },
       body: JSON.stringify(requestData)
     });

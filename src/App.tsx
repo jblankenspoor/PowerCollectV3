@@ -4,7 +4,7 @@
  * Main application component that renders the DataTable with proper context
  * 
  * @module App
- * @version 6.0.0 - Major version update with deployment fixes and improved version display
+ * @version 7.3.3 - Minor version update with Claude API authentication fix for Claude 3.5 Haiku
  */
 
 import { TableProvider } from './context/TableContext';

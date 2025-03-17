@@ -250,7 +250,7 @@ Follow these specific guidelines:
     // Prepare request body with model-specific adjustments
     let requestBody = {
       model: model,
-      max_tokens: model.includes('sonnet') ? 8192 : 4096, // Using documented API limits: 8,192 for Sonnet, 4,096 for Haiku
+      max_tokens: model.includes('sonnet') ? 20000 : 4096, // Using 20,000 for Sonnet (per request limit), 4,096 for Haiku (API limit)
       temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {
@@ -405,7 +405,7 @@ Follow these guidelines:
     // Prepare request body
     const requestBody = {
       model: model,
-      max_tokens: model.includes('sonnet') ? 8192 : 4096, // Using documented API limits: 8,192 for Sonnet, 4,096 for Haiku
+      max_tokens: model.includes('sonnet') ? 20000 : 4096, // Using 20,000 for Sonnet (per request limit), 4,096 for Haiku (API limit)
       temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {

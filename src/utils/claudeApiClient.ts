@@ -229,6 +229,10 @@ Follow these specific guidelines:
 - CRITICAL: NEVER truncate or abbreviate the output. Include ALL rows from the input data in your response.
 - CRITICAL: Do NOT use phrases like "and so on" or "etc." or "..." to abbreviate the data. Include every single row.
 - CRITICAL: Do NOT summarize the data or show only a subset of rows "for brevity". Show ALL rows.
+- CRITICAL: The JSON data provided in the user message is the ACTUAL data to convert, NOT an example. Process ALL of this data.
+- CRITICAL: Do NOT treat the input data as an example. It is the real data that needs to be fully converted.
+- CRITICAL: Every single row in the input must appear as a corresponding row in your output.
+- CRITICAL: If there are 100 rows in the input, there must be 100 rows in your output.
 `;
 
     console.log('Making API request to Claude via Supabase...');
@@ -245,7 +249,7 @@ Follow these specific guidelines:
     // Prepare request body with model-specific adjustments
     let requestBody = {
       model: model,
-      max_tokens: 4000,
+      max_tokens: model.includes('sonnet') ? 8000 : 4000, // Higher token limit for Sonnet
       temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {
@@ -383,12 +387,16 @@ Follow these guidelines:
 - CRITICAL: NEVER truncate or abbreviate the output. Include ALL rows from the input data in your response.
 - CRITICAL: Do NOT use phrases like "and so on" or "etc." or "..." to abbreviate the data. Include every single row.
 - CRITICAL: Do NOT summarize the data or show only a subset of rows "for brevity". Show ALL rows.
+- CRITICAL: The Power FX code provided in the user message is the ACTUAL code to convert, NOT an example. Process ALL of this data.
+- CRITICAL: Do NOT treat the input code as an example. It is the real data that needs to be fully converted.
+- CRITICAL: Every single record in the input must appear as a corresponding row in your output.
+- CRITICAL: If there are 100 records in the input, there must be 100 tasks in your output.
 `;
 
     // Prepare request body
     const requestBody = {
       model: model,
-      max_tokens: 4000,
+      max_tokens: model.includes('sonnet') ? 8000 : 4000, // Higher token limit for Sonnet
       temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {

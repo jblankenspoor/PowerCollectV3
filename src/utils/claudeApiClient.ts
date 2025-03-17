@@ -233,7 +233,7 @@ Follow these specific guidelines:
 - CRITICAL: Do NOT treat the input data as an example. It is the real data that needs to be fully converted.
 - CRITICAL: Every single row in the input must appear as a corresponding row in your output.
 - CRITICAL: If there are 100 rows in the input, there must be 100 rows in your output.
-- CRITICAL: Do NOT cite "space constraints" as a reason to truncate data. You have been allocated 25,000 tokens for your response, which is more than enough for all rows.
+- CRITICAL: Do NOT cite "space constraints" as a reason to truncate data. You have been allocated 15,000 tokens for your response, which is more than enough for all rows.
 - CRITICAL: If you think the output might be too long, it is NOT. You have sufficient space to include ALL rows.
 - CRITICAL: Your response can be very long and that is expected and required. Do not try to make it shorter.
 `;
@@ -252,7 +252,7 @@ Follow these specific guidelines:
     // Prepare request body with model-specific adjustments
     let requestBody = {
       model: model,
-      max_tokens: model.includes('sonnet') ? 20000 : 25000, // Higher token limit for Haiku
+      max_tokens: model.includes('sonnet') ? 20000 : 15000, // Reduced token limit for Haiku to avoid 400 error
       temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {
@@ -394,7 +394,7 @@ Follow these guidelines:
 - CRITICAL: Do NOT treat the input code as an example. It is the real data that needs to be fully converted.
 - CRITICAL: Every single record in the input must appear as a corresponding row in your output.
 - CRITICAL: If there are 100 records in the input, there must be 100 tasks in your output.
-- CRITICAL: Do NOT cite "space constraints" as a reason to truncate data. You have been allocated 25,000 tokens for your response, which is more than enough for all rows.
+- CRITICAL: Do NOT cite "space constraints" as a reason to truncate data. You have been allocated 15,000 tokens for your response, which is more than enough for all rows.
 - CRITICAL: If you think the output might be too long, it is NOT. You have sufficient space to include ALL rows.
 - CRITICAL: Your response can be very long and that is expected and required. Do not try to make it shorter.
 `;
@@ -402,7 +402,7 @@ Follow these guidelines:
     // Prepare request body
     const requestBody = {
       model: model,
-      max_tokens: model.includes('sonnet') ? 20000 : 25000, // Higher token limit for Haiku
+      max_tokens: model.includes('sonnet') ? 20000 : 15000, // Reduced token limit for Haiku to avoid 400 error
       temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {

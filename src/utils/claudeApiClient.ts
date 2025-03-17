@@ -233,9 +233,7 @@ Follow these specific guidelines:
 - CRITICAL: Do NOT treat the input data as an example. It is the real data that needs to be fully converted.
 - CRITICAL: Every single row in the input must appear as a corresponding row in your output.
 - CRITICAL: If there are 100 rows in the input, there must be 100 rows in your output.
-- CRITICAL: Do NOT cite "space constraints" as a reason to truncate data. You have been allocated 15,000 tokens for your response, which is more than enough for all rows.
-- CRITICAL: If you think the output might be too long, it is NOT. You have sufficient space to include ALL rows.
-- CRITICAL: Your response can be very long and that is expected and required. Do not try to make it shorter.
+- CRITICAL: DO NOT mention space constraints, token limits, or any technical limitations in your response. If you cannot complete the task, respond with an error code "ERROR-TOO-LARGE" but make no other comments about why.
 `;
 
     console.log('Making API request to Claude via Supabase...');
@@ -252,7 +250,7 @@ Follow these specific guidelines:
     // Prepare request body with model-specific adjustments
     let requestBody = {
       model: model,
-      max_tokens: model.includes('sonnet') ? 20000 : 15000, // Reduced token limit for Haiku to avoid 400 error
+      max_tokens: model.includes('sonnet') ? 8192 : 4096, // Using documented API limits: 8,192 for Sonnet, 4,096 for Haiku
       temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {
@@ -313,8 +311,15 @@ Follow these specific guidelines:
       
       // Extract the Power FX code from the response
       if (data.content && data.content.length > 0) {
+        const responseText = data.content[0].text;
+        
+        // Check if we got the "ERROR-TOO-LARGE" response
+        if (responseText.includes('ERROR-TOO-LARGE')) {
+          throw new Error(`The dataset is too large for ${getClaudeModelDisplayName(model)}. Please try using Claude 3.7 Sonnet instead, which has a higher token limit.`);
+        }
+        
         return {
-          code: data.content[0].text,
+          code: responseText,
           tokenUsage
         };
       } else {
@@ -394,15 +399,13 @@ Follow these guidelines:
 - CRITICAL: Do NOT treat the input code as an example. It is the real data that needs to be fully converted.
 - CRITICAL: Every single record in the input must appear as a corresponding row in your output.
 - CRITICAL: If there are 100 records in the input, there must be 100 tasks in your output.
-- CRITICAL: Do NOT cite "space constraints" as a reason to truncate data. You have been allocated 15,000 tokens for your response, which is more than enough for all rows.
-- CRITICAL: If you think the output might be too long, it is NOT. You have sufficient space to include ALL rows.
-- CRITICAL: Your response can be very long and that is expected and required. Do not try to make it shorter.
+- CRITICAL: DO NOT mention space constraints, token limits, or any technical limitations in your response. If you cannot complete the task, respond with an error code "ERROR-TOO-LARGE" but make no other comments about why.
 `;
 
     // Prepare request body
     const requestBody = {
       model: model,
-      max_tokens: model.includes('sonnet') ? 20000 : 15000, // Reduced token limit for Haiku to avoid 400 error
+      max_tokens: model.includes('sonnet') ? 8192 : 4096, // Using documented API limits: 8,192 for Sonnet, 4,096 for Haiku
       temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {
@@ -456,9 +459,16 @@ Follow these guidelines:
     
     // Extract the JSON data from the response
     if (data.content && data.content.length > 0) {
+      const responseText = data.content[0].text;
+      
+      // Check if we got the "ERROR-TOO-LARGE" response
+      if (responseText.includes('ERROR-TOO-LARGE')) {
+        throw new Error(`The PowerFX code is too large for ${getClaudeModelDisplayName(model)}. Please try using Claude 3.7 Sonnet instead, which has a higher token limit.`);
+      }
+      
       try {
         // Try to parse the response as JSON
-        let jsonData = JSON.parse(data.content[0].text);
+        let jsonData = JSON.parse(responseText);
         
         // Clean the column data to ensure no old title references remain
         if (jsonData.columns && Array.isArray(jsonData.columns)) {

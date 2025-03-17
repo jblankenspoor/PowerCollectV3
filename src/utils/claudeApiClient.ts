@@ -226,6 +226,9 @@ Follow these specific guidelines:
   * Add: "Made with PowerCollect https://powercollect.jacco.me"
 - IMPORTANT: Do NOT add triple backticks (\`\`\`) at the beginning or end of your code
 - IMPORTANT: Do NOT cache your response, use the latest data provided to you in this request (notice the timestamp)
+- CRITICAL: NEVER truncate or abbreviate the output. Include ALL rows from the input data in your response.
+- CRITICAL: Do NOT use phrases like "and so on" or "etc." or "..." to abbreviate the data. Include every single row.
+- CRITICAL: Do NOT summarize the data or show only a subset of rows "for brevity". Show ALL rows.
 `;
 
     console.log('Making API request to Claude via Supabase...');
@@ -243,7 +246,7 @@ Follow these specific guidelines:
     let requestBody = {
       model: model,
       max_tokens: 4000,
-      temperature: 0.0, // Use a temperature of 0 to make responses more deterministic
+      temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {
           role: 'user',
@@ -377,12 +380,16 @@ Follow these guidelines:
 - Use the EXACT column titles as they appear in the Power FX code, maintaining case sensitivity
 - Do not reference or include any previous versions of column titles that might be in the data
 - IMPORTANT: Do NOT add triple backticks (\`\`\`) at the beginning or end of your response
+- CRITICAL: NEVER truncate or abbreviate the output. Include ALL rows from the input data in your response.
+- CRITICAL: Do NOT use phrases like "and so on" or "etc." or "..." to abbreviate the data. Include every single row.
+- CRITICAL: Do NOT summarize the data or show only a subset of rows "for brevity". Show ALL rows.
 `;
 
     // Prepare request body
     const requestBody = {
       model: model,
       max_tokens: 4000,
+      temperature: model.includes('haiku') ? 0.1 : 0.0, // Slightly higher temperature for Haiku to reduce truncation
       messages: [
         {
           role: 'user',

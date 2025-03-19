@@ -3,12 +3,12 @@
  * @module claudeApiClientMock
  */
 
-import { Column, Task } from '../../types/dataTypes';
+import { Column, Task, Priority, Status, ColumnType } from '../../types/dataTypes';
 
 /**
- * Available Claude API models
+ * Available Claude models for testing
  */
-export type ClaudeModel = 'claude-3-5-haiku-20241022' | 'claude-3-7-sonnet-20250219';
+export type ClaudeModel = 'claude-3-7-sonnet-20250219' | 'claude-3-5-haiku-20241022';
 
 /**
  * Interface for Claude API token usage information
@@ -68,112 +68,176 @@ export const getClaudeModelDisplayName = (model: ClaudeModel): string => {
 };
 
 /**
- * Convert table data to Power FX code using Claude API via Supabase (test version)
+ * Mock response for successful table conversion
+ */
+interface ConversionResponse {
+  code: string;
+  tokenUsage?: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+}
+
+/**
+ * Mock implementation of the Claude API client for testing
+ * @param {Task[]} tasks - The tasks to convert
+ * @param {Column[]} columns - The columns to convert
+ * @param {ClaudeModel} model - The Claude model to use
+ * @returns {Promise<ConversionResponse>} The conversion response
  */
 export const convertTableToPowerFX = async (
   tasks: Task[],
   columns: Column[],
-  model: ClaudeModel = 'claude-3-5-haiku-20241022'
-): Promise<PowerFXGenerationResult> => {
-  try {
-    // For development and testing, we can use a fallback method if Supabase API key is not configured
-    if (!isSupabaseApiKeyConfigured()) {
-      console.warn('Supabase API key not configured. Using fallback method for PowerFX generation.');
-      return {
-        code: `// PowerCollect Data Collection
-// This is a placeholder collection as the API key is not configured.
-// Please configure the VITE_SUPABASE_API_KEY environment variable.
+  model: ClaudeModel
+): Promise<ConversionResponse> => {
+  // Check if we should generate a token limit error
+  const shouldGenerateTokenLimitError = model === 'claude-3-5-haiku-20241022' &&
+    tasks.some(task => task.Title.includes('large-dataset') || task.Title.endsWith('large-dataset'));
 
+  if (shouldGenerateTokenLimitError) {
+    throw new Error('Dataset is too large for Claude 3.5 Haiku. Please use Claude 3.7 Sonnet for higher token limit.');
+  }
+
+  // Generate a mock PowerFX code response
+  const formattedTasks = tasks.map(task => {
+    const taskLines = [
+      `ID: ${task.ID}`,
+      `Title: "${task.Title}"`,
+      `Description: "${task.Description}"`,
+      `Status: "${task.Status}"`,
+      `Priority: "${task.Priority}"`,
+      ...columns
+        .filter(col => col.id !== 'select' && col.id !== 'ID' && col.id !== 'Title' && col.id !== 'Description' && col.id !== 'Status' && col.id !== 'Priority')
+        .map(col => `${col.title}: "${task[col.id as keyof Task]}"`)
+    ];
+    return taskLines.join('\n    ');
+  }).join(',\n\n    ');
+
+  const code = `
+// Generated PowerFX code for ${tasks.length} tasks and ${columns.length} columns
 ClearCollect(
   PowerCollectData,
   [
-    // Sample data structure based on your table
-    // Actual data would be generated with a valid API key
-    { /* Your data would appear here */ }
+    ${formattedTasks}
   ]
 );
 
-// Made with PowerCollect https://powercollect.jacco.me`,
-        tokenUsage: null
-      };
+// Made with PowerCollect
+`;
+
+  return {
+    code,
+    tokenUsage: {
+      input_tokens: tasks.length * columns.length * 10,
+      output_tokens: code.length
     }
+  };
+};
 
-    // Check if global.fetch is mocked to throw an error
-    if ((global as any).fetch && (global as any).fetch.mockImplementation) {
-      const mockFnImpl = (global as any).fetch.getMockImplementation();
-      if (mockFnImpl) {
-        // If fetch is mocked to throw an error, let it propagate through the actual try/catch
-        const result = await (global as any).fetch();
-        if (!result.ok) {
-          throw new Error(`Error: The selected model "${getClaudeModelDisplayName(model)}" (${model}) is not available or not supported by the API endpoint. Please try a different model.`);
-        }
-      }
-    }
-
-    // Add a timestamp to prevent potential caching issues
-    const timestamp = new Date().toISOString();
-
-    // Create simplified data for the test
-    const tableData = {
-      timestamp,
-      columns: columns.map(col => ({ id: col.id, title: col.title, type: col.type })),
-      tasks: tasks.map(task => {
-        const taskData: Record<string, any> = {};
-        columns.forEach(col => {
-          if (col.id in task) {
-            taskData[col.id] = (task as any)[col.id];
-          }
-        });
-        return taskData;
-      })
-    };
-
-    // Special case for large dataset test
-    const dataString = JSON.stringify(tableData, null, 2);
-    if (model === 'claude-3-5-haiku-20241022' && dataString.includes('large-dataset')) {
-      throw new Error(`The dataset is too large for ${getClaudeModelDisplayName(model)}. Please try using Claude 3.7 Sonnet instead, which has a higher token limit.`);
-    }
-
-    // In the mock, we don't actually make the API call
-    // Instead, we return a mock response
-    return {
-      code: `// PowerCollect data collection for task management
-// Schema: ID, Title, Status, Priority, Start Date, Deadline
-// Made with PowerCollect https://powercollect.jacco.me
-
-ClearCollect(
-  PowerCollectData,
-  [
+/**
+ * Mock data for testing table conversion
+ */
+export const mockTableData = {
+  columns: [
+    { id: 'select', title: 'SELECT', type: ColumnType.Select, width: 32, minWidth: 128 },
+    { id: 'col1', title: 'Column 1', type: ColumnType.Text, width: 50 },
+    { id: 'col2', title: 'Column 2', type: ColumnType.Text, width: 50 }
+  ],
+  tasks: [
     {
+      select: false,
       ID: 1,
-      Title: "Complete project proposal",
-      Status: "In Progress",
-      Priority: "High",
-      "Start Date": Date(2023, 5, 15),
-      Deadline: Date(2023, 5, 30)
-    },
-    {
-      ID: 2,
-      Title: "Review documentation",
-      Status: "To Do",
-      Priority: "Medium",
-      "Start Date": Date(2023, 5, 20),
-      Deadline: Date(2023, 6, 10)
+      Title: 'Task 1',
+      Description: 'Description 1',
+      Status: Status.ToDo,
+      Priority: Priority.High,
+      col1: 'Value 1',
+      col2: 'Value 2'
     }
   ]
-);`,
-      tokenUsage: {
-        input_tokens: 1500,
-        output_tokens: 800,
-        total_tokens: 2300
-      }
-    };
-  } catch (error) {
-    if (error instanceof TypeError && (error as TypeError).message.includes('Failed to fetch')) {
-      throw new Error(`Network error when connecting to Supabase. Please check your internet connection and try again. Details: ${(error as TypeError).message}`);
+};
+
+/**
+ * Mock data for testing table conversion with small dataset
+ */
+export const mockSmallDataset = {
+  columns: [
+    { id: 'select', title: 'SELECT', type: ColumnType.Select, width: 80 },
+    { id: 'col1', title: 'Column 1', type: ColumnType.Text, width: 150 },
+    { id: 'col2', title: 'Column 2', type: ColumnType.Text, width: 150 }
+  ],
+  tasks: [
+    {
+      select: false,
+      ID: 1,
+      Title: 'Task 1',
+      Description: 'Description 1',
+      Status: Status.InProgress,
+      Priority: Priority.High,
+      col1: 'Value 1',
+      col2: 'Value 2'
     }
-    throw error;
-  }
+  ]
+};
+
+/**
+ * Mock data for testing table conversion with error cases
+ */
+export const mockErrorData = {
+  columns: [
+    { id: 'select', title: 'SELECT', type: ColumnType.Select, width: 80 },
+    { id: 'ID', title: 'ID', type: ColumnType.Number, width: 100 },
+    { id: 'Title', title: 'Title', type: ColumnType.Text, width: 200 },
+    { id: 'Status', title: 'Status', type: ColumnType.Text, width: 150 },
+    { id: 'Priority', title: 'Priority', type: ColumnType.Text, width: 120 }
+  ],
+  tasks: [
+    {
+      select: false,
+      ID: 1,
+      Title: 'Task 1',
+      Description: 'Description 1',
+      Status: Status.InProgress,
+      Priority: Priority.High
+    }
+  ]
+};
+
+/**
+ * Mock data for testing table conversion with large dataset
+ */
+export const mockLargeDataset = {
+  columns: [
+    { id: 'select', title: 'SELECT', type: ColumnType.Select, width: 32, minWidth: 128 },
+    { id: 'ID', title: 'ID', type: ColumnType.Number, width: 40, minWidth: 160 },
+    { id: 'Title', title: 'Title', type: ColumnType.Text, width: 40, minWidth: 160 },
+    { id: 'Status', title: 'Status', type: ColumnType.Text, width: 40, minWidth: 160 },
+    { id: 'Priority', title: 'Priority', type: ColumnType.Text, width: 40, minWidth: 160 },
+    { id: 'Start_Date', title: 'Start Date', type: ColumnType.Date, width: 40, minWidth: 160 },
+    { id: 'Deadline', title: 'Deadline', type: ColumnType.Date, width: 40, minWidth: 160 }
+  ],
+  tasks: [
+    {
+      select: false,
+      ID: 1,
+      Title: 'Task 1',
+      Description: 'Description 1',
+      Status: Status.ToDo,
+      Priority: Priority.High,
+      Start_Date: '2024-03-01',
+      Deadline: '2024-03-15'
+    },
+    {
+      select: false,
+      ID: 2,
+      Title: 'Task 2',
+      Description: 'Description 2',
+      Status: Status.ToDo,
+      Priority: Priority.Medium,
+      Start_Date: '2024-03-02',
+      Deadline: '2024-03-16'
+    }
+  ]
 };
 
 /**
@@ -190,25 +254,41 @@ export const convertPowerFXToTable = async (
       // Return a minimal table structure with proper types
       return {
         columns: [
-          { id: 'select', title: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
-          { id: 'col1', title: 'Column 1', type: 'text', width: 'w-1/2' },
-          { id: 'col2', title: 'Column 2', type: 'text', width: 'w-1/2' }
+          { id: 'select', title: 'SELECT', type: ColumnType.Select, width: 32, minWidth: 128 },
+          { id: 'ID', title: 'ID', type: ColumnType.Number, width: 40, minWidth: 160 },
+          { id: 'Title', title: 'Title', type: ColumnType.Text, width: 40, minWidth: 160 },
+          { id: 'Status', title: 'Status', type: ColumnType.Text, width: 40, minWidth: 160 },
+          { id: 'Priority', title: 'Priority', type: ColumnType.Text, width: 40, minWidth: 160 },
+          { id: 'Start_Date', title: 'Start Date', type: ColumnType.Date, width: 40, minWidth: 160 },
+          { id: 'Deadline', title: 'Deadline', type: ColumnType.Date, width: 40, minWidth: 160 }
         ],
         tasks: [
-          { 
-            id: '1', 
-            name: 'Sample Task',
-            select: 'false',
-            taskId: '1',
-            status: 'To do',
-            priority: 'Medium',
-            startDate: new Date().toISOString().split('T')[0],
-            deadline: new Date().toISOString().split('T')[0],
-            col1: 'Sample', 
-            col2: 'Data' 
+          {
+            select: false,
+            ID: 1,
+            Title: 'Complete project proposal',
+            Description: 'Project proposal needs to be completed',
+            Status: Status.InProgress,
+            Priority: Priority.High,
+            Start_Date: '2023-05-15',
+            Deadline: '2023-05-30'
+          },
+          {
+            select: false,
+            ID: 2,
+            Title: 'Review documentation',
+            Description: 'Documentation needs to be reviewed',
+            Status: Status.ToDo,
+            Priority: Priority.Medium,
+            Start_Date: '2023-05-20',
+            Deadline: '2023-06-05'
           }
         ],
-        tokenUsage: null
+        tokenUsage: {
+          input_tokens: 100,
+          output_tokens: 200,
+          total_tokens: 300
+        }
       };
     }
 
@@ -233,52 +313,40 @@ export const convertPowerFXToTable = async (
     // Instead, we return a mock response
     return {
       columns: [
-        { id: 'select', title: 'SELECT', type: 'select', width: 'w-32', minWidth: 'min-w-[128px]' },
-        { id: 'ID', title: 'ID', type: 'text', width: 'w-40', minWidth: 'min-w-[160px]' },
-        { id: 'Title', title: 'Title', type: 'text', width: 'w-40', minWidth: 'min-w-[160px]' },
-        { id: 'Status', title: 'Status', type: 'text', width: 'w-40', minWidth: 'min-w-[160px]' },
-        { id: 'Priority', title: 'Priority', type: 'text', width: 'w-40', minWidth: 'min-w-[160px]' },
-        { id: 'Start_Date', title: 'Start Date', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' },
-        { id: 'Deadline', title: 'Deadline', type: 'date', width: 'w-40', minWidth: 'min-w-[160px]' }
+        { id: 'select', title: 'SELECT', type: ColumnType.Select, width: 32, minWidth: 128 },
+        { id: 'ID', title: 'ID', type: ColumnType.Number, width: 40, minWidth: 160 },
+        { id: 'Title', title: 'Title', type: ColumnType.Text, width: 40, minWidth: 160 },
+        { id: 'Status', title: 'Status', type: ColumnType.Text, width: 40, minWidth: 160 },
+        { id: 'Priority', title: 'Priority', type: ColumnType.Text, width: 40, minWidth: 160 },
+        { id: 'Start_Date', title: 'Start Date', type: ColumnType.Date, width: 40, minWidth: 160 },
+        { id: 'Deadline', title: 'Deadline', type: ColumnType.Date, width: 40, minWidth: 160 }
       ],
       tasks: [
         {
-          id: '1',
-          select: 'false',
-          name: 'Complete project proposal',
-          taskId: '1',
-          ID: '1',
+          select: false,
+          ID: 1,
           Title: 'Complete project proposal',
-          Status: 'In Progress',
-          Priority: 'High',
+          Description: 'Project proposal needs to be completed',
+          Status: Status.InProgress,
+          Priority: Priority.High,
           Start_Date: '2023-05-15',
-          Deadline: '2023-05-30',
-          status: 'In Progress',
-          priority: 'High',
-          startDate: '2023-05-15',
-          deadline: '2023-05-30'
+          Deadline: '2023-05-30'
         },
         {
-          id: '2',
-          select: 'false',
-          name: 'Review documentation',
-          taskId: '2',
-          ID: '2',
+          select: false,
+          ID: 2,
           Title: 'Review documentation',
-          Status: 'To Do',
-          Priority: 'Medium',
+          Description: 'Documentation needs to be reviewed',
+          Status: Status.ToDo,
+          Priority: Priority.Medium,
           Start_Date: '2023-05-20',
-          Deadline: '2023-06-10',
-          status: 'To Do',
-          priority: 'Medium',
-          startDate: '2023-05-20',
-          deadline: '2023-06-10'
+          Deadline: '2023-06-05'
         }
       ],
       tokenUsage: {
-        input_tokens: 1500,
-        output_tokens: 800,
-        total_tokens: 2300
+        input_tokens: 100,
+        output_tokens: 200,
+        total_tokens: 300
       }
     };
   } catch (error) {

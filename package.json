@@ -1,7 +1,6 @@
 {
   "name": "powercollectv3",
-  "version": "7.2.2",
-  "version": "7.2.1",
+  "version": "8.0.0",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
@@ -40,6 +39,7 @@
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.16",
     "jest": "^29.7.0",
+    "jest-html-reporter": "^4.1.0",
     "msw": "^2.7.3",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5",

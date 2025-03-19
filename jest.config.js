@@ -36,4 +36,22 @@ module.exports = {
     '!src/vite-env.d.ts',
     '!src/__tests__/mocks/**',
   ],
+  // HTML Reporter configuration
+  reporters: [
+    'default',
+    [
+      'jest-html-reporter',
+      {
+        pageTitle: 'PowerCollectV3 Test Report',
+        outputPath: './test-reports/test-report.html',
+        includeFailureMsg: true,
+        includeSuiteFailure: true,
+        includeConsoleLog: true,
+        includeStackTrace: true,
+        sort: 'status',
+        dateFormat: 'yyyy-mm-dd HH:MM:ss',
+        customScriptPath: null
+      }
+    ]
+  ]
 }; 

@@ -6,37 +6,66 @@
  */
 
 /**
- * Available column types
+ * Type definitions for the application
+ * @module dataTypes
  */
-export type ColumnType = 'select' | 'text' | 'status' | 'priority' | 'date' | 'custom';
+
+/**
+ * Column types supported in the application
+ */
+export enum ColumnType {
+  Select = 'select',
+  Text = 'text',
+  Date = 'date',
+  Number = 'number'
+}
 
 /**
  * Available status options
  */
-export type StatusValue = 'To do' | 'In progress' | 'Done';
+export enum Status {
+  NotStarted = 'Not Started',
+  InProgress = 'In Progress',
+  Completed = 'Completed',
+  Blocked = 'Blocked',
+  ToDo = 'To Do',
+  Done = 'Done'
+}
 
 /**
  * Available priority levels
  */
-export type PriorityValue = 'Low' | 'Medium' | 'High';
+export enum Priority {
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low'
+}
+
+/**
+ * Priority levels for tasks
+ */
+export type PriorityValue = Priority;
+
+/**
+ * Status options for tasks
+ */
+export type StatusValue = Status;
 
 /**
  * Column definition for the DataTable
  * @interface Column
  * @property {string} id - Unique identifier for the column
  * @property {string} title - Original title for the column as entered by the user
- * @property {string} displayTitle - Uppercase display title for the column header
  * @property {ColumnType} type - Type of column that determines rendering
- * @property {string} width - Tailwind width class for the column
- * @property {string} [minWidth] - Optional minimum width class for the column
+ * @property {number} width - Width in pixels for the column
+ * @property {number} [minWidth] - Optional minimum width in pixels for the column
  */
 export interface Column {
   id: string;
   title: string;
-  displayTitle?: string;
   type: ColumnType;
-  width: string;
-  minWidth?: string;
+  width: number;
+  minWidth?: number;
 }
 
 /**
@@ -45,19 +74,25 @@ export interface Column {
 export interface BaseTask {
   id: string;
   name: string;
-  status: StatusValue | string;
-  priority: PriorityValue | string;
+  status: Status;
+  priority: Priority;
   startDate: string;
   deadline: string;
 }
 
 /**
- * Task data structure for the DataTable
- * @interface Task
- * Extends BaseTask with dynamic columns
+ * Task interface
  */
-export interface Task extends BaseTask {
-  [key: string]: string;
+export interface Task {
+  select: boolean;
+  ID: number;
+  Title: string;
+  Description?: string;
+  Status: Status;
+  Priority: Priority;
+  Start_Date?: string;
+  Deadline?: string;
+  [key: string]: any; // Allow dynamic columns
 }
 
 /**
